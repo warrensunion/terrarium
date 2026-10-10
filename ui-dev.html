@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- Dev bench for the shared UI (Task 5): the HUD, river and brain panel fed
+     with fake but lifelike data over a painted stand-in for the jar, so the
+     components can be designed before the worker and the 3D scene exist.
+     Served by Vite, excluded from the build (vite.config.js inputs only index.html).
+     Query: ?panel=1 open the inspector, ?env=1 open the sliders, ?died=1 kill
+     the specimen, ?tools=0 hide the dev buttons, ?motion=reduce. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Terrarium UI bench</title>
+  <link rel="stylesheet" href="/src/styles/tokens.css">
+  <link rel="stylesheet" href="/src/styles/base.css">
+  <style>
+    .ui-dev-scene { position: fixed; inset: 0; width: 100%; height: 100%; }
+    .ui-dev-tools {
+      position: fixed; z-index: 30; left: 50%; top: 12px; transform: translateX(-50%);
+      display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px);
+      font: 500 12px var(--font-text);
+    }
+    .ui-dev-tools button {
+      padding: 6px 10px; border-radius: 999px; border: 1px dashed rgba(255, 244, 214, 0.5);
+      background: rgba(59, 46, 38, 0.7); color: var(--highlight); cursor: pointer;
+    }
+    @media (max-width: 699px) { .ui-dev-tools { top: auto; bottom: calc(46dvh + 8px); } }
+  </style>
+</head>
+<body>
+  <canvas class="ui-dev-scene" aria-hidden="true"></canvas>
+  <div id="ui-root"></div>
+  <div class="ui-dev-tools" aria-label="Dev bench">
+    <button type="button" data-dev="inspect">Inspect a creature</button>
+    <button type="button" data-dev="die">Inspected creature dies</button>
+    <button type="button" data-dev="grow">Grow a neuron</button>
+  </div>
+  <script type="module" src="/src/ui/dev.js"></script>
+</body>
+</html>
