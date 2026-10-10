@@ -14,7 +14,9 @@ import { createCameraRig } from './camera.js';
 import { createGrade } from './grade.js';
 import { lightUniforms } from './look.js';
 
-const ART = { moss: '/art/moss-floor.webp', soil: '/art/soil.webp', backdrop: '/art/room-backdrop.webp' };
+// no soil texture ships (the terrain's procedural peat is the soil), so none is
+// requested: a missing file is a 404 and a console error on every static host
+const ART = { moss: '/art/moss-floor.webp', backdrop: '/art/room-backdrop.webp' };
 
 /** resolves to a texture, or null if the file is missing or not an image */
 function loadOptional(url) {
@@ -64,10 +66,10 @@ export function createStage(container, { bodyFromGenes, reducedMotion = false, m
    */
   const ready = (async () => {
     // art is optional: the jar is fully procedural without it
-    const [moss, soil, backdrop] = await Promise.all([loadOptional(ART.moss), loadOptional(ART.soil), loadOptional(ART.backdrop)]);
-    for (const t of [moss, soil, backdrop]) if (t) textures.push(t);
+    const [moss, backdrop] = await Promise.all([loadOptional(ART.moss), loadOptional(ART.backdrop)]);
+    for (const t of [moss, backdrop]) if (t) textures.push(t);
     if (disposed) { for (const t of textures) t.dispose(); return; }
-    terrain.userData.setTextures({ moss, soil });
+    terrain.userData.setTextures({ moss, soil: null });
     jar.setBackdrop(backdrop);
     try {
       for (const t of textures) renderer.initTexture(t);

@@ -44,7 +44,10 @@ async function mount() {
   } catch (e) {
     // a stale deploy or a dropped connection: say so instead of a blank page
     console.error(e);
-    if (id === seq) app.innerHTML = '<p class="route-error" role="alert">This part of the site could not load. <a href="">Reload the page</a> to try again.</p>';
+    if (id !== seq) return;
+    // the old screen's worker and WebGL context must not run on behind the message
+    if (current) { try { current.destroy(); } catch (err) { console.error(err); } current = null; }
+    app.innerHTML = '<p class="route-error" role="alert">This part of the site could not load. <a href="">Reload the page</a> to try again.</p>';
     return;
   }
   if (id !== seq) return; // a newer navigation won

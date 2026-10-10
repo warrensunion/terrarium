@@ -277,8 +277,22 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     specHue[s] = hue;
   }
 
+  // Dying bodies keep their slot for DIE_S, so two quick resets at the cap can
+  // fill every slot with fading bodies; a birth then takes the one furthest
+  // gone instead of being dropped (which would leave a creature invisible).
+  function reclaimDying() {
+    let best = -1, most = -1;
+    for (let k = 0; k < nActive; k++) {
+      const s = active[k];
+      if (dying[s] > most) { most = dying[s]; best = s; }
+    }
+    if (best >= 0) release(best);
+  }
+
   function add(birth) {
-    if (!birth || slotOf.has(birth.id) || freeTop === 0) return;
+    if (!birth || slotOf.has(birth.id)) return;
+    if (freeTop === 0) reclaimDying();
+    if (freeTop === 0) return;
     const s = free[--freeTop];
     const b = bodyFromGenes(birth.body || {});
     ids[s] = birth.id; slotOf.set(birth.id, s);
