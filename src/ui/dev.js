@@ -175,6 +175,8 @@ if (q.get('tools') === '0') document.querySelector('.ui-dev-tools').remove();
 function openCreature() {
   dead = false;
   newCreature();
+  // ?big=1: the size the brief budgets for (about 50 neurons, 150 connections)
+  if (q.get('big') === '1') for (let i = 0; i < 2000 && (creature.genome.nodes.length < 50 || creature.genome.conns.length < 150); i++) grow(creature.genome);
   for (let i = 0; i < 30; i++) think(creature, i / 60);
   panel.show(inspect(creature));
 }
@@ -214,7 +216,7 @@ function loop(now) {
     think(creature, t);
     panel.update(inspect(creature));
   }
-  paintScene(now / 1000);
+  if (q.get("scene") !== "0") paintScene(now / 1000);
   requestAnimationFrame(loop);
 }
 

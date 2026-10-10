@@ -60,7 +60,7 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
     <div class="ui-brain-body">
       <figure class="ui-brain-figure">
         <canvas class="ui-brain-canvas" role="img"></canvas>
-        <p class="ui-brain-epitaph" aria-hidden="true">Its last thoughts, fading</p>
+        <p class="ui-brain-epitaph" aria-hidden="true">Its last signals are fading</p>
         <figcaption class="ui-brain-legend">
           <span class="ui-brain-key ui-brain-key--warm">excites</span>
           <span class="ui-brain-key ui-brain-key--cool">inhibits</span>
@@ -124,17 +124,20 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
     put('title', `Specimen no. ${ins.id}`);
     put('species', `Species ${ins.species}`);
     const hue = speciesHue?.(ins.species);
-    swatch.style.background = hue == null ? 'var(--ui-violet-lift)' : `hsl(${hue}, 55%, 55%)`;
+    const sw = hue == null ? 'var(--ui-violet-lift)' : `hsl(${hue}, 55%, 55%)`;
+    if (shown.swatch !== sw) swatch.style.background = shown.swatch = sw;
     if (!dead) put('status', 'Alive, thinking');
     const e = Math.max(0, Math.min(1, ins.energy ?? 0));
     put('energy', `${Math.round(e * 100)}%`);
-    fill.style.transform = `scaleX(${e})`;
-    el.dataset.hungry = String(e < 0.2);
+    // style writes only on change: a new transform every frame restarts the transition
+    const ex = `scaleX(${Math.round(e * 200) / 200})`;
+    if (shown.fill !== ex) fill.style.transform = shown.fill = ex;
+    if (el.dataset.hungry !== String(e < 0.2)) el.dataset.hungry = String(e < 0.2);
     put('age', fmtAge(ins.age ?? 0));
     put('gen', ins.generation ?? 0);
     put('gathered', ins.gathered ?? 0);
     const hidden = g.nodes.filter((n) => n.type === 'hidden').length;
-    put('neurons', hidden ? `${g.nodes.length}, ${hidden} hidden` : `${g.nodes.length}`);
+    put('neurons', hidden ? `${g.nodes.length} (${hidden} hidden)` : `${g.nodes.length}`);
     const on = g.conns.filter((c) => c.on).length;
     put('conns', on === g.conns.length ? `${on}` : `${on} of ${g.conns.length}`);
     put('depth', viz.depth());
@@ -314,12 +317,13 @@ function createBrainViz(canvas) {
   let idx = new Map(); // node id -> index into values
   let ncols = 2;
   let W = 0, H = 0, dpr = 1, padL = 84, padR = 48;
-  let raf = 0, lastT = 0, time = 0, life = 1, tLife = 1, stopAt = 0;
+  let raf = 0, lastT = 0, life = 1, tLife = 1, stopAt = 0, frameNo = 0, glowK = 1, pulseK = 1;
+  const base = document.createElement('canvas'); // cached resting wiring
+  const bctx = base.getContext('2d');
+  const glow = document.createElement('canvas'); // low-res additive signal layer
+  const gctx = glow.getContext('2d');
+  let baseDirty = true;
 
-  const ro = new ResizeObserver(measure);
-  ro.observe(canvas);
-  measure();
-  document.fonts?.ready.then(measure);
 
   function measure() {
     const r = canvas.getBoundingClientRect();
@@ -328,6 +332,11 @@ function createBrainViz(canvas) {
     H = Math.max(1, Math.round(r.height));
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
+    base.width = canvas.width;
+    base.height = canvas.height;
+    glow.width = W;
+    glow.height = H;
+    baseDirty = true;
     ctx.font = LABEL_FONT;
     padL = Math.ceil(Math.max(...IN_LABELS.map((s) => ctx.measureText(s).width))) + 20;
     padR = Math.ceil(Math.max(...OUT_LABELS.map((s) => ctx.measureText(s).width))) + 20;
@@ -336,12 +345,21 @@ function createBrainViz(canvas) {
 
   function setGenome(g, fresh) {
     if (fresh) { nodes.clear(); edges.clear(); keys.clear(); life = tLife = 1; }
+    baseDirty = true;
     idx = new Map(g.nodes.map((n, i) => [n.id, i]));
     const depth = hiddenDepths(g);
     let maxD = 0;
     for (const d of depth.values()) maxD = Math.max(maxD, d);
     ncols = maxD + 2;
     const colOf = (n) => (n.type === 'in' || n.type === 'bias' ? 0 : n.type === 'out' ? ncols - 1 : depth.get(n.id));
+    // hidden columns keep clear of the sense and action columns, so a first-layer
+    // neuron never sits on top of an input when the brain gets deep
+    const xOf = (n) => {
+      const c = colOf(n);
+      if (c === 0) return 0;
+      if (c === ncols - 1) return 1;
+      return maxD === 1 ? 0.5 : 0.17 + (0.66 * (c - 1)) / (maxD - 1);
+    };
 
     // target ys for fixed columns first, so new hidden nodes can key off them
     const ty = new Map();
@@ -387,7 +405,7 @@ function createBrainViz(canvas) {
     const live = new Set();
     for (const n of g.nodes) {
       live.add(n.id);
-      const tx = ncols > 1 ? colOf(n) / (ncols - 1) : 0;
+      const tx = xOf(n);
       let s = nodes.get(n.id);
       if (!s) {
         // a newborn neuron grows out of the wiring it splits; on a fresh brain
@@ -415,6 +433,11 @@ function createBrainViz(canvas) {
       e.from = c.from; e.to = c.to; e.w = c.w; e.on = c.on; e.ta = 1;
     }
     for (const [inn, e] of edges) if (!liveE.has(inn)) e.ta = 0;
+    // additive light piles up: a dense brain gets a dimmer lamp per wire, so
+    // 150 connections read as a network, not a white blob
+    const on = g.conns.filter((c) => c.on).length;
+    glowK = Math.min(1, Math.sqrt(36 / Math.max(1, on)));
+    pulseK = Math.sqrt(glowK);
   }
 
   function setValues(values) {
@@ -458,62 +481,95 @@ function createBrainViz(canvas) {
   const Y = (y) => 16 + y * Math.max(10, H - 32);
   const P = new Float64Array(8);
   const Q = new Float64Array(2);
+  const q = (v, n) => Math.round(v * n) / n;
+
+  // Stroking is what costs on the GPU (one draw per path), so curves are
+  // batched: one path per (colour, alpha, width) bucket instead of per edge.
+  const buckets = new Map();
+  function queue(style, width, dash, p) {
+    const key = `${style}|${width}|${dash}`;
+    let b = buckets.get(key);
+    if (!b) buckets.set(key, (b = { style, width, dash, pts: [] }));
+    b.pts.push(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+  }
+  function flush(c) {
+    c.lineCap = 'round';
+    for (const b of buckets.values()) {
+      c.setLineDash(b.dash ? [2, 4] : []);
+      c.lineWidth = b.width;
+      c.strokeStyle = b.style;
+      c.beginPath();
+      const p = b.pts;
+      for (let i = 0; i < p.length; i += 8) {
+        c.moveTo(p[i], p[i + 1]);
+        c.bezierCurveTo(p[i + 2], p[i + 3], p[i + 4], p[i + 5], p[i + 6], p[i + 7]);
+      }
+      c.stroke();
+    }
+    c.setLineDash([]);
+    buckets.clear();
+  }
 
   function frame(now, still = false) {
     const dt = lastT ? Math.min(0.05, (now - lastT) / 1000) : 1 / 60;
     lastT = now;
-    if (!still) time += dt;
 
-    // ease everything the eye follows
+    // ease everything the eye follows; note whether the wiring layer must redraw
+    let moving = false;
     life = damp(life, tLife, 2.2, dt);
     for (const [nid, s] of nodes) {
-      if (s.delay > 0) { s.delay -= dt; continue; }
+      if (s.delay > 0) { s.delay -= dt; moving = true; continue; }
       s.x = damp(s.x, s.tx, 6, dt);
       s.y = damp(s.y, s.ty, 6, dt);
       s.a = damp(s.a, s.ta, 5, dt);
       s.v = damp(s.v, s.tv * (tLife ? 1 : 0), tLife ? 16 : 1.6, dt);
-      if (!s.ta && s.a < 0.01) nodes.delete(nid);
+      if (!s.ta && s.a < 0.01) { nodes.delete(nid); moving = true; continue; }
+      if (Math.abs(s.x - s.tx) > 2e-4 || Math.abs(s.y - s.ty) > 2e-4 || Math.abs(s.a - s.ta) > 0.003) moving = true;
     }
     for (const [inn, e] of edges) {
       const f = nodes.get(e.from), t = nodes.get(e.to);
       const ready = f && t && f.a > 0.05 && t.a > 0.05;
-      e.a = damp(e.a, ready ? e.ta : 0, 4, dt);
+      const ta = ready ? e.ta : 0;
+      e.a = damp(e.a, ta, 4, dt);
       e.s = damp(e.s, e.ts * life, 12, dt);
-      if (!e.ta && e.a < 0.01) edges.delete(inn);
+      if (!e.ta && e.a < 0.01) { edges.delete(inn); moving = true; continue; }
+      if (Math.abs(e.a - ta) > 0.003) moving = true;
     }
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
+    if (moving || Math.abs(life - tLife) > 0.003) baseDirty = true;
+
     const dim = 0.55 + 0.45 * life;
     const span = (H - 32) / 9.5;
     const rScale = Math.max(0.6, Math.min(1, span / 24));
 
-    // 1. the wiring at rest: sign as warm or cool, weight as width
-    ctx.lineCap = 'round';
-    for (const e of edges.values()) {
-      if (e.a < 0.01) continue;
-      const f = nodes.get(e.from), t = nodes.get(e.to);
-      if (!f || !t) continue;
-      curve(f, t, P);
-      const mag = Math.min(Math.abs(e.w), 3) / 3;
-      ctx.beginPath();
-      ctx.moveTo(P[0], P[1]);
-      ctx.bezierCurveTo(P[2], P[3], P[4], P[5], P[6], P[7]);
-      if (e.on) {
-        ctx.setLineDash([]);
-        ctx.lineWidth = 0.6 + 2.2 * mag;
-        ctx.strokeStyle = rgba(e.w >= 0 ? WARM : COOL, (0.16 + 0.3 * mag) * e.a * dim);
-      } else {
-        ctx.setLineDash([2, 4]);
-        ctx.lineWidth = 0.9;
-        ctx.strokeStyle = rgba(FOG, 0.16 * e.a);
+    // 1. the wiring at rest (sign as warm or cool, weight as width) lives in
+    // its own layer and is only redrawn while something is moving
+    if (baseDirty) {
+      baseDirty = false;
+      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bctx.clearRect(0, 0, W, H);
+      for (const e of edges.values()) {
+        if (e.a < 0.01) continue;
+        const f = nodes.get(e.from), t = nodes.get(e.to);
+        if (!f || !t) continue;
+        curve(f, t, P);
+        const mag = Math.min(Math.abs(e.w), 3) / 3;
+        if (e.on) queue(rgba(e.w >= 0 ? WARM : COOL, q((0.16 + 0.3 * mag) * e.a * dim, 40)), q(0.6 + 2.2 * mag, 4), false, P);
+        else queue(rgba(FOG, q(0.16 * e.a, 40)), 0.9, true, P);
       }
-      ctx.stroke();
+      flush(bctx);
     }
-    ctx.setLineDash([]);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(base, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // 2. signal: additive glow per edge, and pulses that travel the wire
     ctx.globalCompositeOperation = 'lighter';
+    // a big brain refreshes its (eased, low-res) glow layer at 30 Hz to stay
+    // inside the frame budget; pulses and neurons still move at 60
+    frameNo++;
+    const glowNow = still || edges.size <= 90 || frameNo % 2 === 0 || moving;
     for (const e of edges.values()) {
       const s = e.s * e.a;
       if (!e.on || s < 0.02) continue;
@@ -522,44 +578,51 @@ function createBrainViz(canvas) {
       curve(f, t, P);
       const mag = Math.min(Math.abs(e.w), 3) / 3;
       const c = e.w >= 0 ? WARM : COOL;
-      ctx.beginPath();
-      ctx.moveTo(P[0], P[1]);
-      ctx.bezierCurveTo(P[2], P[3], P[4], P[5], P[6], P[7]);
-      ctx.lineWidth = 2 + 2.2 * mag + 5 * s;
-      ctx.strokeStyle = rgba(c, 0.1 * s);
-      ctx.stroke();
-      ctx.lineWidth = 0.6 + 1.6 * mag;
-      ctx.strokeStyle = rgba(c, 0.6 * s);
-      ctx.stroke();
+      // the halo is invisible on weak signals; skipping it there halves the strokes
+      if (glowNow && s > 0.25) queue(rgba(c, q(0.1 * s * glowK, 80)), Math.round(2 + 2.2 * mag + 5 * s), false, P);
+      if (glowNow) queue(rgba(c, q(0.55 * s * glowK, 12)), q(0.6 + 1.6 * mag, 2), false, P);
       if (!reduced && s > 0.14 && f.type !== 'bias') {
         // one or two pulses, faster for stronger signal; they fade at the ends
-        const speed = 0.35 + 1.1 * s;
+        // phase is integrated, not time * speed, so a changing signal never makes a pulse jump
+        if (!still) e.phase = (e.phase + dt * (0.35 + 1.1 * s)) % 1;
         const count = s > 0.6 ? 2 : 1;
         for (let k = 0; k < count; k++) {
-          const tt = (e.phase + time * speed + k / count) % 1;
+          const tt = (e.phase + k / count) % 1;
           bez(P, tt, Q);
           const edgeFade = Math.sin(Math.PI * tt);
           const r = (4 + 6 * s) * rScale;
-          ctx.globalAlpha = Math.min(1, s * 1.2) * edgeFade;
+          ctx.globalAlpha = Math.min(1, s * 1.2) * edgeFade * pulseK;
           ctx.drawImage(cyan, Q[0] - r, Q[1] - r, r * 2, r * 2);
         }
         ctx.globalAlpha = 1;
       }
     }
+    // the glow strokes are soft by nature, so they render at css-pixel resolution
+    // (a quarter of the fill cost at 2x) and are scaled up additively
+    if (glowNow) {
+      gctx.setTransform(1, 0, 0, 1, 0, 0);
+      gctx.clearRect(0, 0, glow.width, glow.height);
+      gctx.setTransform(glow.width / W, 0, 0, glow.height / H, 0, 0);
+      gctx.globalCompositeOperation = 'lighter';
+      flush(gctx);
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(glow, 0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
 
     // 3. neurons: ink body, violet ring, glow with |activation|
-    ctx.font = LABEL_FONT;
-    ctx.textBaseline = 'middle';
+    // glows first, all additive, so the blend mode switches once
+    ctx.globalCompositeOperation = 'lighter';
+    const drawn = [];
     for (const s of nodes.values()) {
       if (s.a < 0.01) continue;
       const x = X(s.x), y = Y(s.y);
-      const big = s.type !== 'hidden';
-      const r = (big ? 4.6 : 3.6) * rScale;
+      const r = (s.type !== 'hidden' ? 4.6 : 3.6) * rScale;
       const act = Math.min(1, Math.abs(s.v));
       // cyan only once a neuron is really firing; below that a violet breath
       const fire = s.type === 'bias' ? 0 : Math.max(0, (act - 0.18) / 0.82) * life;
-      ctx.globalCompositeOperation = 'lighter';
+      drawn.push({ s, x, y, r, act, fire });
       if (s.type !== 'bias') {
         const vr = r * (2.4 + 2.5 * act);
         ctx.globalAlpha = s.a * (0.18 + 0.35 * act) * dim;
@@ -570,29 +633,46 @@ function createBrainViz(canvas) {
         ctx.globalAlpha = s.a * fire * 0.95;
         ctx.drawImage(cyan, x - cr, y - cr, cr * 2, cr * 2);
       }
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    // bodies, batched by look: ink disc with a violet (or, for bias, fog) ring
+    const bodies = new Map();
+    for (const d of drawn) {
+      const key = `${q(d.s.a, 20)}|${d.s.type === 'bias' ? 'b' : d.s.type === 'hidden' ? 'h' : 'io'}`;
+      if (!bodies.has(key)) bodies.set(key, []);
+      bodies.get(key).push(d);
+    }
+    for (const [key, list] of bodies) {
+      const [a, kind] = key.split('|');
+      ctx.globalAlpha = Number(a);
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      for (const d of list) { ctx.moveTo(d.x + d.r, d.y); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); }
       ctx.fillStyle = INK;
-      ctx.globalAlpha = s.a;
       ctx.fill();
-      ctx.lineWidth = big ? 1.4 : 1.1;
-      ctx.strokeStyle = s.type === 'bias' ? rgba(FOG, 0.5) : rgba(VIOLET, 0.95 * dim);
+      ctx.lineWidth = kind === 'h' ? 1.1 : 1.4;
+      ctx.strokeStyle = kind === 'b' ? rgba(FOG, 0.5) : rgba(VIOLET, q(0.95 * dim, 20));
       ctx.stroke();
-      if (fire > 0.01) {
-        ctx.beginPath();
-        ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
-        ctx.fillStyle = rgba(CYAN, fire);
-        ctx.fill();
-      }
-      if (s.label) {
-        const left = s.type === 'in' || s.type === 'bias';
-        ctx.textAlign = left ? 'right' : 'left';
-        ctx.fillStyle = rgba(FOG, (0.5 + 0.5 * act * life) * s.a);
-        ctx.fillText(s.label, left ? x - r - 7 : x + r + 7, y + 0.5);
-      }
-      ctx.globalAlpha = 1;
+    }
+    ctx.globalAlpha = 1;
+    // lit cores
+    for (const d of drawn) {
+      if (d.fire <= 0.01) continue;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r * 0.55, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(CYAN, d.fire * d.s.a);
+      ctx.fill();
+    }
+    // plain-word labels for senses and actions, brightening as they fire
+    ctx.font = LABEL_FONT;
+    ctx.textBaseline = 'middle';
+    for (const d of drawn) {
+      if (!d.s.label) continue;
+      const left = d.s.type === 'in' || d.s.type === 'bias';
+      ctx.textAlign = left ? 'right' : 'left';
+      ctx.fillStyle = rgba(FOG, (0.5 + 0.5 * d.act * life) * d.s.a);
+      ctx.fillText(d.s.label, left ? d.x - d.r - 7 : d.x + d.r + 7, d.y + 0.5);
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
@@ -601,6 +681,12 @@ function createBrainViz(canvas) {
     if (stopAt && now > stopAt) { raf = 0; stopAt = 0; lastT = 0; return; }
     raf = requestAnimationFrame(frame);
   }
+
+  // start observing only once every helper above exists (measure draws a frame)
+  const ro = new ResizeObserver(measure);
+  ro.observe(canvas);
+  measure();
+  document.fonts?.ready.then(measure);
 
   return {
     start() {

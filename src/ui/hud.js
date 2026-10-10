@@ -151,7 +151,12 @@ export function createHud(root, { onSpeed = () => {}, onParams = () => {}, onRes
     const b = e.target.closest('button');
     if (!b || !el.contains(b)) return;
     if (b.dataset.speed !== undefined) choose(Number(b.dataset.speed));
-    else if (b.dataset.act === 'env') setEnv(env.dataset.open !== 'true');
+    else if (b.dataset.act === 'env') {
+      const open = env.dataset.open !== 'true';
+      setEnv(open);
+      // the sliders sit above the dock, so a keyboard user is taken to them
+      if (open && e.detail === 0) inputs[0].focus({ preventScroll: true });
+    }
     else if (b.dataset.act === 'reset') onReset();
     // a mouse click must not leave focus on a button, or the next Space would
     // press it again instead of toggling pause
