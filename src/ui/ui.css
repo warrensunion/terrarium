@@ -74,7 +74,8 @@
 .ui-hud-count-num { color: var(--ui-text); font-weight: 600; }
 
 .ui-hud-console {
-  width: 380px;
+  width: fit-content;
+  min-width: 380px;
   max-width: 100%;
   border-radius: var(--ui-r-plate);
   padding: 12px;
@@ -82,7 +83,8 @@
   flex-direction: column;
 }
 
-.ui-hud-river { margin: 0; padding: 2px 4px 10px; }
+/* inline-size containment: the river never widens the console, only the dock can */
+.ui-hud-river { margin: 0; padding: 2px 4px 10px; contain: inline-size; }
 .ui-hud-river-cap { font-size: 13px; color: var(--ui-text-2); margin: 0 0 6px; }
 .ui-river { width: 100%; height: 92px; }
 
@@ -157,8 +159,10 @@
 .ui-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--ink-lift), 0 0 0 4px var(--lichen); }
 .ui-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--ink-lift), 0 0 0 4px var(--lichen); }
 
-.ui-hud-dock { display: flex; align-items: center; gap: 6px; }
-.ui-hud-sep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--ui-line); }
+/* the dock never clips: the console grows to fit it (fit-content, below), and if
+   a narrow console still cannot hold it, it wraps instead of spilling */
+.ui-hud-dock { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ui-hud-sep { width: 1px; align-self: stretch; margin: 6px 1px; background: var(--ui-line); }
 
 .ui-speed {
   position: relative;
@@ -182,9 +186,9 @@
 .ui-hud[data-paused="true"] .ui-speed-thumb { background: rgba(214, 195, 90, 0.2); }
 .ui-speed-opt {
   position: relative;
-  min-width: 42px;
+  min-width: 38px;
   height: 34px;
-  padding: 0 9px;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--ui-r-ctl);
   background: none;
@@ -205,7 +209,7 @@
 
 .ui-hud-btn {
   height: 40px;
-  padding: 0 12px;
+  padding: 0 10px;
   border: 0;
   border-radius: var(--ui-r-ctl);
   background: none;
@@ -214,7 +218,7 @@
   font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 200ms var(--e-p2-out), color 200ms var(--e-p2-out);
@@ -424,7 +428,11 @@ button.ui-brain-chip:hover { background: rgba(107, 79, 160, 0.42); border-color:
 
 /* ------------------------------------------------------------------ mid widths */
 @media (max-width: 1000px) and (min-width: 700px) {
-  html[data-ui-brain="open"] .ui-hud-console { max-width: calc(100vw - 360px - 3 * var(--ui-gutter)); }
+  html[data-ui-brain="open"] .ui-hud-console { min-width: 0; max-width: calc(100vw - 360px - 3 * var(--ui-gutter)); }
+  /* squeezed beside the panel, the dock drops to icon buttons like on phones */
+  html[data-ui-brain="open"] .ui-hud-btn { position: relative; width: 40px; padding: 0; justify-content: center; }
+  html[data-ui-brain="open"] .ui-speed-opt { min-width: 36px; padding: 0 6px; }
+  html[data-ui-brain="open"] .ui-hud-btn > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 }
 
 /* ------------------------------------------------------------------ phones */
@@ -434,7 +442,7 @@ button.ui-brain-chip:hover { background: rgba(107, 79, 160, 0.42); border-color:
   .ui-hud-gen-num { font-size: 28px; }
   .ui-hud-gen-label { font-size: 13px; }
   .ui-hud-counts { margin: 0; gap: 12px; font-size: 13px; }
-  .ui-hud-console { width: 100%; padding: 8px; }
+  .ui-hud-console { width: 100%; min-width: 0; padding: 8px; }
   .ui-hud-river { padding: 4px 6px 8px; }
   .ui-river { height: 64px; }
   .ui-hud-dock { gap: 2px; }
