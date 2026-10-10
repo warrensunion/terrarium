@@ -52,6 +52,7 @@ export default function liveScreen(root) {
   let hues = new Map();
   const alive = new Set();
   let raf = 0, last = performance.now();
+  const perf = { work: 0, frames: 0 }; // main-thread ms spent by this screen, for shoot.mjs
   let inner = null; // a fallback that replaced this screen after a failed start
 
   const showError = (text) => { errorEl.textContent = text; errorEl.hidden = false; };
@@ -108,6 +109,7 @@ export default function liveScreen(root) {
     if (m.type === 'ready') { backend = m.backend; log('jar ready on', m.backend, m.reason || ''); return; }
     if (m.type === 'error') { inFlight = false; log('sim error:', m.message); return; }
     if (m.type !== 'frame') return;
+    const w0 = performance.now();
     inFlight = false;
     const now = performance.now();
     if (next) interval = Math.min(100, Math.max(8, now - nextAt)) * 0.3 + interval * 0.7;
@@ -127,6 +129,7 @@ export default function liveScreen(root) {
       if (!panelOpen) { panel.show(m.inspect); panelOpen = true; } else panel.update(m.inspect);
     }
     if (!ready && stageReady) { ready = true; el.classList.add('is-ready'); }
+    perf.work += performance.now() - w0;
   }
 
   function loop(t) {
@@ -138,9 +141,11 @@ export default function liveScreen(root) {
       if (speed > 0 || t - lastStepSent > 100) { worker.postMessage({ type: 'step', steps: speed }); inFlight = true; lastStepSent = t; }
     }
     if (!next) return;
+    const w0 = performance.now();
     const alpha = speed > 0 ? Math.min(1, (performance.now() - nextAt) / interval) : 1;
     stage.render(dt, alpha);
     river.draw();
+    perf.work += performance.now() - w0; perf.frames++;
   }
 
   function inspect(id) {
@@ -173,6 +178,7 @@ export default function liveScreen(root) {
       get ready() { return ready; },
       get stats() { return stats; },
       get backend() { return backend; },
+      perf() { const r = perf.frames ? perf.work / perf.frames : 0; perf.work = 0; perf.frames = 0; return r; },
       speed(n) { speed = n; hud?.setSpeed(n); },
       inspect,
       kill(id) { worker?.postMessage({ type: 'debug-kill', id }); },

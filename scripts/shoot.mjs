@@ -115,16 +115,19 @@ async function shootAt(key) {
     await page.waitForTimeout(4000); await shot(page, 'live');
     R.backend = await page.evaluate(() => window.__live?.backend);
     const fps = async (label) => {
+      await page.evaluate(() => window.__live.perf());
       const ms = await page.evaluate(() => new Promise((res) => { const d = []; let last = performance.now(); const end = last + 5000; const f = (t) => { d.push(t - last); last = t; if (t < end) requestAnimationFrame(f); else res(d); }; requestAnimationFrame(f); }));
       ms.sort((a, b) => a - b);
       const avg = ms.reduce((a, b) => a + b, 0) / ms.length;
-      const r = { fps: +(1000 / avg).toFixed(1), p50: +ms[ms.length >> 1].toFixed(1), p95: +ms[Math.floor(ms.length * 0.95)].toFixed(1), population: (await page.evaluate(() => window.__live?.stats?.population)) };
+      const r = { fps: +(1000 / avg).toFixed(1), p50: +ms[ms.length >> 1].toFixed(1), p95: +ms[Math.floor(ms.length * 0.95)].toFixed(1), population: (await page.evaluate(() => window.__live?.stats?.population)), mainThreadMs: +(await page.evaluate(() => window.__live.perf())).toFixed(2) };
       R[`fps-${label}`] = r; log(`fps ${label}: ${JSON.stringify(r)}`);
       return r;
     };
     if (key === '1440' || key === '1920') {
       const a = await fps('1x');
-      if (key === '1440' && (a.fps < 50 || a.population < 500)) fail(`jar ${a.fps} fps with ${a.population} creatures (want >= 50 fps, >= 500)`);
+      // fps is the visitor's number, but this machine is shared, so the budget
+      // check is our own main-thread work per frame (60 fps needs < 16.7 ms)
+      if (key === '1440' && (a.population < 500 || a.mainThreadMs > 10 || a.fps < 30)) fail(`jar ${a.fps} fps, ${a.mainThreadMs} ms main-thread work per frame, ${a.population} creatures (want 500+, < 10 ms)`);
       await page.evaluate(() => window.__live.speed(16));
       await fps('16x');
     } else {
@@ -148,6 +151,18 @@ async function shootAt(key) {
     const t1 = await page.evaluate(() => window.__live.stats.tick);
     R.hiddenSteps = t1 - t0; log(`steps across a hidden 5 s: ${t1 - t0}`);
     await done('live');
+  }
+  if (want('cap') && key === '1440') {
+    // the population cap (1000): the renderer's worst case
+    const { page, done } = await open('/?preloader=0&count=1000#/live');
+    await page.waitForFunction(() => window.__live?.ready, null, { timeout: 30000 });
+    await page.waitForTimeout(3000);
+    await page.evaluate(() => window.__live.perf());
+    await page.waitForTimeout(5000);
+    const r = { mainThreadMs: +(await page.evaluate(() => window.__live.perf())).toFixed(2), population: await page.evaluate(() => window.__live.stats.population) };
+    R['cap'] = r; log('cap: ' + JSON.stringify(r));
+    if (r.mainThreadMs > 12) fail(`at the cap ${r.population} creatures cost ${r.mainThreadMs} ms main-thread work per frame`);
+    await done('cap');
   }
   if (want('reduced')) {
     let o = await open('/?preloader=0&scene=2', { reduced: true });

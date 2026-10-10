@@ -1,0 +1,38 @@
+{
+ "failures": [
+  "[1440] jar 53.6 fps, 11.01 ms main-thread work per frame, 547 creatures (want 500+, < 10 ms)",
+  "[1440] at the cap 952 creatures cost 14.31 ms main-thread work per frame"
+ ],
+ "report": {
+  "1440": {
+   "logs": [
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x"
+   ],
+   "backend": "webgpu",
+   "fps-1x": {
+    "fps": 53.6,
+    "p50": 16.7,
+    "p95": 33.3,
+    "population": 547,
+    "mainThreadMs": 11.01
+   },
+   "fps-16x": {
+    "fps": 58.8,
+    "p50": 16.7,
+    "p95": 16.8,
+    "population": 720,
+    "mainThreadMs": 8.7
+   },
+   "hiddenSteps": 144,
+   "cap": {
+    "mainThreadMs": 14.31,
+    "population": 952
+   }
+  }
+ }
+}
