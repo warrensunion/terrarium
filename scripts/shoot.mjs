@@ -78,7 +78,9 @@ async function shootAt(key) {
   if (want('preloader')) {
     const { page, done } = await open('/?preloader=1');
     await page.waitForTimeout(600); await shot(page, 'preloader-a');
-    await page.waitForTimeout(1000); await shot(page, 'preloader-b');
+    // the sprout, by state rather than by clock (load time varies)
+    await page.waitForSelector('.pl-pop', { timeout: 20000 }).catch(() => fail('preloader never popped the sprout'));
+    await page.waitForTimeout(450); await shot(page, 'preloader-b');
     await page.waitForFunction(() => window.__intro?.settled, null, { timeout: 20000 }).catch(() => fail('preloader never reached scene 1'));
     await shot(page, 'preloader-done'); await done('preloader');
   }

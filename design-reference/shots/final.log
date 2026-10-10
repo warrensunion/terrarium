@@ -1,0 +1,10 @@
+[1440] fps 1x: {"fps":60.2,"p50":16.7,"p95":16.7,"population":562,"mainThreadMs":3.78}
+[1440] fps 16x: {"fps":60.2,"p50":16.7,"p95":16.7,"population":822,"mainThreadMs":3.01}
+[1440] steps across a hidden 5 s: 96
+[1440] cap: {"mainThreadMs":4.02,"population":678}
+[1920] fps 1x: {"fps":56.3,"p50":16.7,"p95":33.2,"population":548,"mainThreadMs":5.36}
+[1920] fps 16x: {"fps":59,"p50":16.7,"p95":16.8,"population":791,"mainThreadMs":4.52}
+[1920] steps across a hidden 5 s: 128
+[390] steps across a hidden 5 s: 80
+
+all checks passed

@@ -1,0 +1,27 @@
+{
+ "failures": [],
+ "report": {
+  "390": {
+   "logs": [
+    "[terrarium] preloader on",
+    "[terrarium] screen /",
+    "[terrarium] prefetched the jar screen"
+   ]
+  },
+  "1440": {
+   "logs": [
+    "[terrarium] preloader on",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] prefetched the jar screen"
+   ]
+  },
+  "1920": {
+   "logs": [
+    "[terrarium] preloader on",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three"
+   ]
+  }
+ }
+}

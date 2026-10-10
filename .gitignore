@@ -8,3 +8,4 @@ design-reference/**/frames/
 design-reference/**/*.webm
 art-src/cut/*.png
 art-src/gen/*.log
+design-reference/shots/**/*.png
