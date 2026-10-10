@@ -1,0 +1,529 @@
+{
+ "jar": {
+  "file": "jar.webp",
+  "trim": [
+   112,
+   80,
+   800,
+   1380
+  ],
+  "size": [
+   800,
+   1380
+  ],
+  "source": []
+ },
+ "jar-world": {
+  "file": "jar-world.webp",
+  "trim": [
+   96,
+   81,
+   834,
+   1385
+  ],
+  "size": [
+   834,
+   1385
+  ],
+  "source": []
+ },
+ "fg-moss": {
+  "file": "fg-moss.webp",
+  "trim": [
+   0,
+   349,
+   1536,
+   675
+  ],
+  "size": [
+   1536,
+   675
+  ],
+  "source": []
+ },
+ "mid-rocks": {
+  "file": "mid-rocks.webp",
+  "trim": [
+   25,
+   338,
+   1481,
+   581
+  ],
+  "size": [
+   1481,
+   581
+  ],
+  "source": []
+ },
+ "bg-fog": {
+  "file": "bg-fog.webp",
+  "trim": [
+   0,
+   0,
+   1536,
+   1024
+  ],
+  "size": [
+   1536,
+   1024
+  ],
+  "source": []
+ },
+ "species-salmon": [
+  {
+   "file": "sp-salmon-0.webp",
+   "crop": [
+    42,
+    121,
+    537,
+    321
+   ]
+  },
+  {
+   "file": "sp-salmon-1.webp",
+   "crop": [
+    387,
+    275,
+    369,
+    199
+   ]
+  },
+  {
+   "file": "sp-salmon-2.webp",
+   "crop": [
+    767,
+    276,
+    377,
+    203
+   ]
+  },
+  {
+   "file": "sp-salmon-3.webp",
+   "crop": [
+    1144,
+    293,
+    350,
+    188
+   ]
+  },
+  {
+   "file": "sp-salmon-4.webp",
+   "crop": [
+    283,
+    506,
+    338,
+    415
+   ]
+  },
+  {
+   "file": "sp-salmon-5.webp",
+   "crop": [
+    687,
+    512,
+    184,
+    385
+   ]
+  },
+  {
+   "file": "sp-salmon-6.webp",
+   "crop": [
+    970,
+    568,
+    343,
+    269
+   ]
+  }
+ ],
+ "leaves-left": {
+  "file": "leaves-left.webp",
+  "trim": [
+   0,
+   0,
+   733,
+   1536
+  ],
+  "size": [
+   733,
+   1536
+  ],
+  "source": []
+ },
+ "leaves-right": {
+  "file": "leaves-right.webp",
+  "trim": [
+   372,
+   0,
+   652,
+   1536
+  ],
+  "size": [
+   652,
+   1536
+  ],
+  "source": []
+ },
+ "species-violet": [
+  {
+   "file": "sp-violet-0.webp",
+   "crop": [
+    57,
+    155,
+    348,
+    344
+   ]
+  },
+  {
+   "file": "sp-violet-1.webp",
+   "crop": [
+    419,
+    163,
+    417,
+    315
+   ]
+  },
+  {
+   "file": "sp-violet-2.webp",
+   "crop": [
+    860,
+    203,
+    350,
+    270
+   ]
+  },
+  {
+   "file": "sp-violet-3.webp",
+   "crop": [
+    1230,
+    247,
+    272,
+    216
+   ]
+  },
+  {
+   "file": "sp-violet-4.webp",
+   "crop": [
+    318,
+    538,
+    243,
+    391
+   ]
+  },
+  {
+   "file": "sp-violet-5.webp",
+   "crop": [
+    698,
+    574,
+    255,
+    346
+   ]
+  },
+  {
+   "file": "sp-violet-6.webp",
+   "crop": [
+    997,
+    633,
+    300,
+    190
+   ]
+  }
+ ],
+ "species-lichen": [
+  {
+   "file": "sp-lichen-0.webp",
+   "crop": [
+    51,
+    229,
+    333,
+    279
+   ]
+  },
+  {
+   "file": "sp-lichen-1.webp",
+   "crop": [
+    409,
+    188,
+    349,
+    330
+   ]
+  },
+  {
+   "file": "sp-lichen-2.webp",
+   "crop": [
+    768,
+    204,
+    333,
+    325
+   ]
+  },
+  {
+   "file": "sp-lichen-3.webp",
+   "crop": [
+    1114,
+    189,
+    378,
+    346
+   ]
+  },
+  {
+   "file": "sp-lichen-4.webp",
+   "crop": [
+    325,
+    558,
+    254,
+    315
+   ]
+  },
+  {
+   "file": "sp-lichen-5.webp",
+   "crop": [
+    701,
+    615,
+    169,
+    262
+   ]
+  },
+  {
+   "file": "sp-lichen-6.webp",
+   "crop": [
+    1011,
+    658,
+    197,
+    176
+   ]
+  }
+ ],
+ "particles": [
+  {
+   "file": "pt-0.webp",
+   "crop": [
+    322,
+    156,
+    162,
+    165
+   ]
+  },
+  {
+   "file": "pt-1.webp",
+   "crop": [
+    571,
+    153,
+    170,
+    173
+   ]
+  },
+  {
+   "file": "pt-2.webp",
+   "crop": [
+    283,
+    366,
+    163,
+    149
+   ]
+  },
+  {
+   "file": "pt-3.webp",
+   "crop": [
+    828,
+    192,
+    139,
+    111
+   ]
+  },
+  {
+   "file": "pt-4.webp",
+   "crop": [
+    1068,
+    153,
+    165,
+    179
+   ]
+  },
+  {
+   "file": "pt-5.webp",
+   "crop": [
+    219,
+    759,
+    132,
+    111
+   ]
+  },
+  {
+   "file": "pt-6.webp",
+   "crop": [
+    311,
+    572,
+    140,
+    122
+   ]
+  },
+  {
+   "file": "pt-7.webp",
+   "crop": [
+    571,
+    385,
+    132,
+    130
+   ]
+  },
+  {
+   "file": "pt-8.webp",
+   "crop": [
+    578,
+    564,
+    145,
+    149
+   ]
+  },
+  {
+   "file": "pt-9.webp",
+   "crop": [
+    845,
+    399,
+    127,
+    123
+   ]
+  },
+  {
+   "file": "pt-10.webp",
+   "crop": [
+    389,
+    774,
+    111,
+    97
+   ]
+  },
+  {
+   "file": "pt-11.webp",
+   "crop": [
+    547,
+    767,
+    117,
+    115
+   ]
+  },
+  {
+   "file": "pt-12.webp",
+   "crop": [
+    752,
+    751,
+    144,
+    121
+   ]
+  },
+  {
+   "file": "pt-13.webp",
+   "crop": [
+    851,
+    568,
+    145,
+    134
+   ]
+  },
+  {
+   "file": "pt-14.webp",
+   "crop": [
+    965,
+    747,
+    157,
+    139
+   ]
+  },
+  {
+   "file": "pt-15.webp",
+   "crop": [
+    1081,
+    570,
+    167,
+    128
+   ]
+  },
+  {
+   "file": "pt-16.webp",
+   "crop": [
+    1093,
+    395,
+    137,
+    134
+   ]
+  },
+  {
+   "file": "pt-17.webp",
+   "crop": [
+    1178,
+    745,
+    114,
+    140
+   ]
+  }
+ ],
+ "preloader-sprout": {
+  "file": "preloader-sprout.webp",
+  "trim": [
+   442,
+   346,
+   418,
+   595
+  ],
+  "size": [
+   418,
+   595
+  ],
+  "source": []
+ },
+ "gene-strand": {
+  "file": "gene-strand.webp",
+  "trim": [
+   0,
+   380,
+   1536,
+   260
+  ],
+  "size": [
+   1536,
+   260
+  ],
+  "source": []
+ },
+ "room-backdrop": {
+  "file": "room-backdrop.webp",
+  "trim": [
+   0,
+   0,
+   1536,
+   1024
+  ],
+  "size": [
+   1536,
+   1024
+  ],
+  "source": []
+ },
+ "moss-floor": {
+  "file": "moss-floor.webp",
+  "trim": [
+   0,
+   0,
+   1254,
+   1254
+  ],
+  "size": [
+   1024,
+   1024
+  ],
+  "source": []
+ },
+ "paper-grain": {
+  "file": "paper-grain.webp",
+  "trim": [
+   0,
+   0,
+   1254,
+   1254
+  ],
+  "size": [
+   512,
+   512
+  ],
+  "source": []
+ }
+}
