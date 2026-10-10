@@ -40,6 +40,9 @@ export const STRIDE = 10;
 export const DT = 1 / 60;
 export const FLOOR = 60;
 export const MAX_CREATURES = 2000;
+// births stop here: past ~1000 the main thread spends more than half a
+// laptop frame animating legs, and a jar this full reads as noise anyway
+export const POP_CAP = 1000;
 export const FOOD_MAX = 900;
 export const FOOD_PER_STEP = 6; // × foodRate
 const EAT_R = 0.02;
@@ -350,7 +353,7 @@ export function createWorld({ seed = 1, count = 600, params = {}, sensor = sense
   }
 
   function mate(c, i, t, rate) {
-    if (world.creatures.length + born.length >= MAX_CREATURES) return;
+    if (world.creatures.length + born.length >= POP_CAP) return;
     const cs = world.creatures;
     const { start, items } = creatureGrid;
     const x = snap[i * 3], y = snap[i * 3 + 1];

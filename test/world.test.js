@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorld, packFrame, STRIDE, FLOOR } from '../src/sim/world.js';
+import { POP_CAP } from '../src/sim/world.js';
 import { senseCPU, SENSE_R } from '../src/sim/sense-cpu.js';
 
 const run = (w, n, each) => { for (let i = 0; i < n; i++) { w.step(); each?.(w); } return w; };
@@ -205,4 +206,12 @@ test('kill(id) removes a creature at the next step through the normal death path
   const f = packFrame(w, victim.id, since);
   assert.ok(f.deaths.includes(victim.id));
   assert.equal(f.dead, victim.id);
+});
+
+test('a rich jar never grows past POP_CAP (the renderer budget)', () => {
+  const w = createWorld({ seed: 3, count: 900, params: { foodRate: 3 } });
+  let max = 0;
+  for (let i = 0; i < 2400; i++) { w.step(); max = Math.max(max, w.creatures.length); }
+  assert.ok(max <= POP_CAP, `population reached ${max}, cap ${POP_CAP}`);
+  assert.ok(max >= POP_CAP * 0.9, `a rich jar should approach the cap, got ${max}`);
 });

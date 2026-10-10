@@ -1,0 +1,30 @@
+{
+ "failures": [
+  "[1440] jar 41.7 fps with 608 creatures (want >= 50 fps, >= 500)"
+ ],
+ "report": {
+  "1440": {
+   "logs": [
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, one step late at 1x, at most 4 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, one step late at 1x, at most 4 at 4x/16x",
+    "[terrarium] fallback: forced off by ?webgl=0",
+    "[terrarium] screen /live"
+   ],
+   "backend": "webgpu",
+   "fps-1x": {
+    "fps": 41.7,
+    "p50": 16.7,
+    "p95": 83.3,
+    "population": 608
+   },
+   "fps-16x": {
+    "fps": 59.8,
+    "p50": 16.7,
+    "p95": 16.7,
+    "population": 610
+   },
+   "hiddenSteps": 160
+  }
+ }
+}

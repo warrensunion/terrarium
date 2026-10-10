@@ -18,6 +18,8 @@ import './live.css';
 
 const SEED = Number(param('seed')) || 20261010;
 const COUNT = Number(param('count')) || 600;
+// 1.3 keeps the first die-off above 500 creatures (food 1 dips to ~320-430)
+const PARAMS = { foodRate: 1.3, mutationRate: 0.3, temperature: 0.5 };
 
 export default function liveScreen(root) {
   const gl = hasWebGL2();
@@ -69,6 +71,7 @@ export default function liveScreen(root) {
       Promise.resolve(stage.ready).then(() => { stageReady = true; });
       hud = createHud(el, {
         speed,
+        params: PARAMS,
         onSpeed: (n) => { speed = n; },
         onParams: (p) => worker?.postMessage({ type: 'params', params: p }),
         onReset: () => { closeInspect(); worker?.postMessage({ type: 'reset', seed: (Math.random() * 1e9) | 0 }); },
@@ -97,7 +100,7 @@ export default function liveScreen(root) {
     }
     worker.onmessage = onMessage;
     worker.onerror = (e) => { console.error('[terrarium] worker error', e.message); showError('The simulation stopped. Reload the page to start a new jar.'); };
-    worker.postMessage({ type: 'init', seed: SEED, count: COUNT, params: { foodRate: 1, mutationRate: 0.3, temperature: 0.5 }, simcheck: param('simcheck') === '1' });
+    worker.postMessage({ type: 'init', seed: SEED, count: COUNT, params: PARAMS, simcheck: param('simcheck') === '1' });
   }
 
   function onMessage({ data: m }) {
