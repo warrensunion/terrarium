@@ -1,0 +1,36 @@
+/* Design tokens. The palette and type scale are fixed in docs/art-direction.md;
+   change them there first, then here. */
+@font-face { font-family: 'IM Fell English'; src: url('/fonts/im-fell-english.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'IM Fell English'; src: url('/fonts/im-fell-english-italic.woff2') format('woff2'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Hanken Grotesk'; src: url('/fonts/hanken-grotesk-var.woff2') format('woff2'); font-weight: 300 700; font-style: normal; font-display: swap; }
+
+:root {
+  --fog: #C9D8D2;
+  --moss: #1F3A33;
+  --lichen: #D6C35A;
+  --violet: #6B4FA0;
+  --cyan: #5FE3D8;
+  --peat: #3B2E26;
+  --salmon: #F07A8C;
+  --ink-lift: #14241F;
+  --highlight: #FFF4D6;
+
+  --font-display: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
+  --font-text: 'Hanken Grotesk', system-ui, sans-serif;
+
+  /* scale: base 17 px, ratio 1.333 (perfect fourth) */
+  --t-0: 17px;
+  --t-1: 22.7px;
+  --t-2: 30.2px;
+  --t-3: 40.3px;
+  --t-4: 53.7px;
+  --t-5: clamp(40px, 5vw, 71.6px);
+  --t-6: clamp(44px, 6.63vw, 95.5px);
+
+  /* motion: GSAP Power curves as CSS cubic-beziers (see src/core/ease.js) */
+  --e-p2-out: cubic-bezier(0.215, 0.61, 0.355, 1);     /* cubic out */
+  --e-p2-inout: cubic-bezier(0.645, 0.045, 0.355, 1);  /* cubic in-out */
+  --e-p3-inout: cubic-bezier(0.77, 0, 0.175, 1);       /* quart in-out */
+  --e-p4-inout: cubic-bezier(0.86, 0, 0.07, 1);        /* quint in-out */
+  --e-p4-out: cubic-bezier(0.23, 1, 0.32, 1);          /* quint out */
+}

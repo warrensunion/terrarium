@@ -1,0 +1,57 @@
+[1440x900] 0.00s goto 
+[1440x900] 5.49s loaded 
+[1440x900] 20.50s disc-visible 
+[1440x900] 23.47s hover-disc 
+[1440x900] 26.46s unhover-disc 
+[1440x900] 29.30s hover-disc-2 
+[1440x900] 31.13s hover-enter 
+[1440x900] 32.78s click-enter 
+[1440x900] 43.40s start-visible {"start":{"x":718.734375,"y":775.5,"w":225.5,"h":73.5}}
+[1440x900] 45.43s hover-start 
+[1440x900] 46.81s unhover-start 
+[1440x900] 48.26s click-start 
+[1440x900] 57.40s scene-1-settled 
+[1440x900] 57.43s mouse-C {"x":0.5,"y":0.5}
+[1440x900] 60.60s mouse-L {"x":0.05,"y":0.5}
+[1440x900] 64.29s mouse-R {"x":0.95,"y":0.5}
+[1440x900] 67.32s mouse-C {"x":0.5,"y":0.5}
+[1440x900] 70.43s mouse-T {"x":0.5,"y":0.08}
+[1440x900] 73.46s mouse-B {"x":0.5,"y":0.92}
+[1440x900] 76.78s mouse-C {"x":0.5,"y":0.5}
+[1440x900] 119.27s sweep-done 
+[1440x900] 124.78s wheel-done 
+[1440x900] 141.30s scene-1-gesture-0 
+[1440x900] 143.83s scene-1-hover-next {"next":{"x":720,"y":79,"w":175,"h":58}}
+[1440x900] 145.81s scene-1-click-next 
+[1440x900] 155.86s scene-2-settled 
+[1440x900] 156.67s s2-mouse-L 
+[1440x900] 159.45s s2-mouse-R 
+[1440x900] 162.11s s2-mouse-C 
+[1440x900] 196.34s scene-2-gesture-0 
+[1440x900] 198.08s scene-2-hover-next {"next":{"x":720,"y":79,"w":175,"h":58}}
+[1440x900] 199.34s scene-2-click-next 
+[1440x900] 209.47s scene-3-settled 
+[1440x900] 213.82s s3-mouse-L 
+[1440x900] 216.51s s3-mouse-R 
+[1440x900] 219.45s s3-mouse-C 
+[1440x900] 236.10s scene-3-gesture-0 
+[1440x900] 237.72s scene-3-hover-next {"next":{"x":720,"y":79,"w":175,"h":58}}
+[1440x900] 239.80s scene-3-click-next 
+[1440x900] 250.21s scene-4-settled 
+[1440x900] 251.98s s4-mouse-L 
+[1440x900] 254.70s s4-mouse-R 
+[1440x900] 257.24s s4-mouse-C 
+[1440x900] 274.72s scene-4-gesture-0 
+[1440x900] 278.06s scene-4-hover-next {"next":{"x":720,"y":79,"w":175,"h":58}}
+[1440x900] 279.47s scene-4-click-next 
+[1440x900] 289.49s scene-5-settled 
+[1440x900] 293.34s s5-mouse-L 
+[1440x900] 298.43s s5-mouse-R 
+[1440x900] 303.01s s5-mouse-C 
+[1440x900] 318.70s scene-5-gesture-0 
+[1440x900] 330.43s scene-5-gesture-1 
+[1440x900] 363.88s scene-5-gesture-2 
+[1440x900] 381.10s scene-5-gesture-3 
+[1440x900] 388.13s scene-5-no-next 
+[1440x900] 390.49s end 
+[1440x900] 2717 frames over 389.4 s
