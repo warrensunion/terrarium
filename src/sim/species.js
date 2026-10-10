@@ -45,8 +45,14 @@ export function speciate(pop, prev, threshold, rng, nextId, tick = 0) {
   return out;
 }
 
+/**
+ * Steers the species count into [lo, hi]. A higher threshold merges, so too
+ * many species raise it and too few lower it. (The shared contract wrote the
+ * factors the other way round; that is a positive feedback loop that ends
+ * with one species, so the direction here is the stabilising one.)
+ */
 export function adjustThreshold(t, count, lo = 6, hi = 14) {
-  if (count > hi) t *= 0.9;
-  else if (count < lo) t *= 1.1;
+  if (count > hi) t *= 1.1;
+  else if (count < lo) t *= 0.9;
   return Math.min(12, Math.max(0.5, t));
 }

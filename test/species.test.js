@@ -64,12 +64,25 @@ test('new species hues step by the golden angle 137.5', () => {
 });
 
 test('adjustThreshold moves toward the target species count and clamps', () => {
-  assert.ok(Math.abs(adjustThreshold(3, 20) - 2.7) < 1e-12, 'too many species: lower');
-  assert.ok(Math.abs(adjustThreshold(3, 2) - 3.3) < 1e-12, 'too few species: raise');
+  // a higher threshold merges species, a lower one splits them
+  assert.ok(Math.abs(adjustThreshold(3, 20) - 3.3) < 1e-12, 'too many species: raise to merge');
+  assert.ok(Math.abs(adjustThreshold(3, 2) - 2.7) < 1e-12, 'too few species: lower to split');
   assert.equal(adjustThreshold(3, 10), 3, 'in band: keep');
   assert.equal(adjustThreshold(3, 6), 3);
   assert.equal(adjustThreshold(3, 14), 3);
-  assert.equal(adjustThreshold(0.51, 100), 0.5, 'clamped low');
-  assert.equal(adjustThreshold(11.9, 0), 12, 'clamped high');
-  assert.ok(Math.abs(adjustThreshold(3, 5, 2, 4) - 2.7) < 1e-12, 'custom band');
+  assert.equal(adjustThreshold(0.51, 0), 0.5, 'clamped low');
+  assert.equal(adjustThreshold(11.9, 100), 12, 'clamped high');
+  assert.ok(Math.abs(adjustThreshold(3, 5, 2, 4) - 3.3) < 1e-12, 'custom band');
+});
+
+test('adjustThreshold steers a real population into the 6..14 band', () => {
+  const rng = createRng(30);
+  const tracker = createTracker();
+  const pop = Array.from({ length: 200 }, (_, i) => ({ id: i + 1, genome: createGenome(rng, tracker) }));
+  let t = 12, sp = [];
+  for (let round = 0; round < 60; round++) {
+    sp = speciate(pop, [], t, rng, counter(), round);
+    t = adjustThreshold(t, sp.length);
+  }
+  assert.ok(sp.length >= 4 && sp.length <= 20, `${sp.length} species at threshold ${t}`);
 });
