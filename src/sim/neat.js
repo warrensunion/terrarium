@@ -24,6 +24,19 @@ const HIDDEN_ACTS = ['tanh', 'sigmoid', 'relu', 'sin'];
 const ACT_CODE = { id: 0, tanh: 1, sigmoid: 2, relu: 3, sin: 4 };
 
 /**
+ * tanh as a 7th-order Lambert continued fraction (|error| < 1e-4, exact ±1
+ * beyond ±4.97). Math.tanh and Math.exp are several times slower and this
+ * runs ~10 times per creature per step.
+ */
+export function tanh(x) {
+  if (x > 4.97) return 1;
+  if (x < -4.97) return -1;
+  const x2 = x * x;
+  const v = (x * (135135 + x2 * (17325 + x2 * (378 + x2)))) / (135135 + x2 * (62370 + x2 * (3150 + x2 * 28)));
+  return v > 1 ? 1 : v < -1 ? -1 : v;
+}
+
+/**
  * One tracker per world: the same structural mutation, wherever it happens,
  * gets the same innovation number (and a split the same node id), which is
  * what lets crossover line genomes up.
@@ -208,13 +221,13 @@ export function createBrain(g) {
   function activate(inputs) {
     for (let i = 0; i < N_IN; i++) values[i] = inputs[i];
     values[BIAS] = 1;
-    prev.set(values);
+    for (let k = 0; k < n; k++) prev[k] = values[k]; // .set() costs more on arrays this small
     for (let k = BIAS + 1; k < n; k++) {
       let s = 0;
       for (let c = start[k], e = start[k + 1]; c < e; c++) s += w[c] * prev[src[c]];
       switch (acts[k]) {
-        case 1: s = Math.tanh(s); break;
-        case 2: s = 1 / (1 + Math.exp(-s)); break;
+        case 1: s = tanh(s); break;
+        case 2: s = 0.5 + 0.5 * tanh(0.5 * s); break; // logistic sigmoid
         case 3: s = s < 0 ? 0 : s > 1 ? 1 : s; break;
         case 4: s = Math.sin(s); break;
         default: break;
