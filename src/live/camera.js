@@ -3,13 +3,16 @@
  * a real object: every input sets a goal and the camera damps toward it, so
  * nothing snaps. Orbit by drag (or one finger), zoom by wheel (or pinch),
  * clamped so the jar never leaves view; follow(getPos) glides down onto a
- * creature at λ = 4 and release() glides back out to where you were.
+ * creature at λ = 4 and release() glides back out: same azimuth and zoom,
+ * tilt reset to the home stage angle. (Under reduced motion both are cuts.)
  *
  * Framing follows makemepulse: the subject fills the frame. The home distance
  * is fitted, not tuned: fitView() projects the jar's silhouette (JAR_RINGS) and finds
  * the distance at which it fills ~88% of the viewport height (or 90% of the
  * width on narrow screens), and the target height that centres it. Wheel/pinch
  * zoom is a factor on that fitted distance, so it holds at every aspect.
+ * Dragging the tilt refits too, so the camera dollies in or out as you tilt
+ * and the jar keeps filling the frame.
  */
 import * as THREE from 'three';
 import { damp, clamp } from '../core/ease.js';
@@ -158,7 +161,12 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
       dt = Math.min(dt, 0.1);
       // refit when the aspect or the tilt changes (the jar keeps filling the frame)
       const a = camera.aspect, pq = Math.round(phiT * 100);
-      if (a !== fit.aspect || pq !== fit.phiQ) { fitView(pq / 100, a, camera.fov, fit); fit.aspect = a; fit.phiQ = pq; home.y = fit.targetY; }
+      if (a !== fit.aspect || pq !== fit.phiQ) {
+        fitView(pq / 100, a, camera.fov, fit); fit.aspect = a; fit.phiQ = pq; home.y = fit.targetY;
+        // extreme aspects fit from far away: keep the room (backdrop, table) inside the far plane
+        const far = Math.max(200, fit.dist * ZOOM_MAX + 70);
+        if (camera.far !== far) { camera.far = far; camera.updateProjectionMatrix(); }
+      }
       distT = getPos ? followDistT : fit.dist * zoom;
       if (getPos) {
         const p = getPos();

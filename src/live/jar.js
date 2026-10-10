@@ -216,12 +216,12 @@ export function createJar() {
   // cork lid, bevelled, pressed into the neck
   // a tapered stopper seated in the neck: the cap overhangs the lip and sits on it,
   // the body goes down inside the glass (shaded there by corkFrag)
-  const T = NECK_R + 0.17, C = NECK_R - 0.06, CT = LIP_Y + 0.4, SEAT = LIP_Y + 0.05;
+  const T = NECK_R + 0.24, C = NECK_R - 0.06, CT = LIP_Y + 0.4, SEAT = LIP_Y + 0.02; // cap wider than the lip roll (NECK_R + 0.2)
   const corkPts = [[0, CT], [T - 0.22, CT], [T - 0.05, CT - 0.05], [T, CT - 0.16], [T - 0.01, SEAT + 0.03], [T - 0.08, SEAT], [C, SEAT], [C - 0.03, NECK_Y - 0.5], [C - 0.25, NECK_Y - 0.56], [0, NECK_Y - 0.56]].map(([x, y]) => new THREE.Vector2(x, y));
   const corkGeo = new THREE.LatheGeometry(corkPts.reverse(), 96);
   corkGeo.computeVertexNormals();
   const cork = new THREE.Mesh(corkGeo, new THREE.ShaderMaterial({
-    uniforms: { ...lightUniforms, uPeat: { value: PALETTE.peat.clone() }, uSeat: { value: LIP_Y + 0.05 } }, vertexShader: plainVert, fragmentShader: corkFrag,
+    uniforms: { ...lightUniforms, uPeat: { value: PALETTE.peat.clone() }, uSeat: { value: LIP_Y + 0.02 } }, vertexShader: plainVert, fragmentShader: corkFrag,
   }));
   cork.name = 'lv-cork';
 
