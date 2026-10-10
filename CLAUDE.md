@@ -28,21 +28,32 @@ npm run dev      # http://localhost:5173 (honours $PORT)
 npm test         # node --test: NEAT, species, genes -> body, world, IK, easing
 npm run build
 node scripts/shoot.mjs [tag] [only,these] [1440|1920|390|all]
+node scripts/smoke-prod.mjs   # the BUILT site: every route, asset types, a 3x route cycle
+node scripts/compare.mjs [tag] [1440|1920]   # side-by-side with makemepulse
+node scripts/shots-to-jpg.mjs design-reference/shots/<tag>   # JPEG copies for git
 ```
 
 `?preloader=1` forces the preloader (it otherwise plays once per browser
 session, `terrarium:preloaded` in sessionStorage), `?preloader=0` skips it.
 `?scene=1..5` opens the intro at that scene. `?motion=reduce|full` beats the
 OS reduced-motion setting. `?webgl=0` forces the static fallback.
-`?simcheck=1` runs one sim step on both sensing backends and logs the
-largest difference.
+`?simcheck=1` senses one world on both backends and logs the largest
+difference. `?seed=` and `?count=` (60-2000) start the jar from another
+world. In the jar: drag turns it, a click (or F, or "Follow a creature")
+follows a creature and opens its brain, Esc lets go, Space pauses, 1/2/3
+are 1x/4x/16x.
 
 `scripts/shoot.mjs` starts its own Vite server and shoots every scene and
 state at 1440x900, 1920x1080 and 390x844 into `design-reference/shots/<tag>/`
 (preloader, scenes 1-5, each transition mid-way, About, the jar at 1x and
 16x, following a creature, that creature dying, reduced motion, no WebGL),
-measures fps in the jar, and fails on any console error, horizontal
-scroll, or under 50 fps with 500+ creatures at 1440.
+measures fps and this screen's own main-thread work per frame in the jar,
+and fails on any console error, horizontal scroll, under 500 creatures,
+or more than 10 ms of main-thread work per frame at 1440 (the machine
+may be shared, so frame time alone is not the budget). Shot PNGs stay
+local; `shots-to-jpg.mjs` makes the copies that go in git.
+Playwright's Chromium needs `--disable-dawn-features=use_dxc` for WebGPU
+(no dxil.dll); real Chrome does not.
 `design-reference/compare/` puts those shots beside the makemepulse
 recordings.
 
@@ -91,8 +102,14 @@ docs/                      spec.md, art-direction.md, intro-brief.md, plans
   CPU path (tested). The worker owns the world; the main thread only
   renders snapshots, interpolating between the last two.
 - **WebGPU is an accelerator, never a requirement.** Sensing runs as a
-  compute pass when the worker gets an adapter; otherwise the CPU grid
-  hash, and the worker logs why (`[terrarium] sim backend: ...`).
+  compute pass when the worker gets an adapter within 3.5 s; otherwise the
+  CPU grid hash, and the worker logs why (`[terrarium] sim backend: ...`).
+  GPU inputs are 1 step old at 1x and at most 3 at 4x/16x.
+- **The jar is budgeted.** `POP_CAP` (1000, `src/sim/world.js`) stops
+  births; the renderer animates legs by on-screen size (`src/live/lod.js`):
+  under ~8 px no legs, 8-20 px IK one frame in three, larger every frame,
+  the followed creature always full. A worker that errors or sends no
+  frame within 8 s gets a message, never a silent empty jar.
 - **Every WebGL screen has a static fallback** and logs why it used it.
 - **Reduced motion goes through `src/core/env.js`**: cross-fades instead
   of motion, the jar starts paused.
