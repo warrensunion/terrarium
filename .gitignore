@@ -5,3 +5,6 @@ art-src/gen/*.png
 !art-src/gen/.keep
 design-reference/**/frames/
 .superpowers/
+design-reference/**/*.webm
+art-src/cut/*.png
+art-src/gen/*.log

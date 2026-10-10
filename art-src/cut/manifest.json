@@ -1,0 +1,137 @@
+{
+ "jar": {
+  "file": "jar.webp",
+  "trim": [
+   112,
+   80,
+   800,
+   1380
+  ],
+  "size": [
+   800,
+   1380
+  ],
+  "source": []
+ },
+ "jar-world": {
+  "file": "jar-world.webp",
+  "trim": [
+   96,
+   81,
+   834,
+   1385
+  ],
+  "size": [
+   834,
+   1385
+  ],
+  "source": []
+ },
+ "fg-moss": {
+  "file": "fg-moss.webp",
+  "trim": [
+   0,
+   349,
+   1536,
+   675
+  ],
+  "size": [
+   1536,
+   675
+  ],
+  "source": []
+ },
+ "mid-rocks": {
+  "file": "mid-rocks.webp",
+  "trim": [
+   25,
+   338,
+   1481,
+   581
+  ],
+  "size": [
+   1481,
+   581
+  ],
+  "source": []
+ },
+ "bg-fog": {
+  "file": "bg-fog.webp",
+  "trim": [
+   0,
+   0,
+   1536,
+   1024
+  ],
+  "size": [
+   1536,
+   1024
+  ],
+  "source": []
+ },
+ "species-salmon": [
+  {
+   "file": "sp-salmon-0.webp",
+   "crop": [
+    42,
+    121,
+    537,
+    321
+   ]
+  },
+  {
+   "file": "sp-salmon-1.webp",
+   "crop": [
+    387,
+    275,
+    369,
+    199
+   ]
+  },
+  {
+   "file": "sp-salmon-2.webp",
+   "crop": [
+    767,
+    276,
+    377,
+    203
+   ]
+  },
+  {
+   "file": "sp-salmon-3.webp",
+   "crop": [
+    1144,
+    293,
+    350,
+    188
+   ]
+  },
+  {
+   "file": "sp-salmon-4.webp",
+   "crop": [
+    283,
+    506,
+    338,
+    415
+   ]
+  },
+  {
+   "file": "sp-salmon-5.webp",
+   "crop": [
+    687,
+    512,
+    184,
+    385
+   ]
+  },
+  {
+   "file": "sp-salmon-6.webp",
+   "crop": [
+    970,
+    568,
+    343,
+    269
+   ]
+  }
+ ]
+}

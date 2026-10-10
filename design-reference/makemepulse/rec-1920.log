@@ -1,0 +1,57 @@
+[1920x1080] 0.00s goto 
+[1920x1080] 7.79s loaded 
+[1920x1080] 20.84s disc-visible 
+[1920x1080] 23.48s hover-disc 
+[1920x1080] 26.20s unhover-disc 
+[1920x1080] 28.75s hover-disc-2 
+[1920x1080] 30.45s hover-enter 
+[1920x1080] 31.97s click-enter 
+[1920x1080] 42.12s start-visible {"start":{"x":958.3203125,"y":974,"w":300.65625,"h":97.984375}}
+[1920x1080] 45.24s hover-start 
+[1920x1080] 46.51s unhover-start 
+[1920x1080] 50.08s click-start 
+[1920x1080] 59.13s scene-1-settled 
+[1920x1080] 59.16s mouse-C {"x":0.5,"y":0.5}
+[1920x1080] 62.45s mouse-L {"x":0.05,"y":0.5}
+[1920x1080] 65.49s mouse-R {"x":0.95,"y":0.5}
+[1920x1080] 68.74s mouse-C {"x":0.5,"y":0.5}
+[1920x1080] 72.28s mouse-T {"x":0.5,"y":0.08}
+[1920x1080] 76.38s mouse-B {"x":0.5,"y":0.92}
+[1920x1080] 79.44s mouse-C {"x":0.5,"y":0.5}
+[1920x1080] 121.75s sweep-done 
+[1920x1080] 125.36s wheel-done 
+[1920x1080] 138.32s scene-1-gesture-0 
+[1920x1080] 142.62s scene-1-hover-next {"next":{"x":960,"y":79,"w":175,"h":58}}
+[1920x1080] 144.16s scene-1-click-next 
+[1920x1080] 154.49s scene-2-settled 
+[1920x1080] 155.48s s2-mouse-L 
+[1920x1080] 158.65s s2-mouse-R 
+[1920x1080] 161.18s s2-mouse-C 
+[1920x1080] 182.58s scene-2-gesture-0 
+[1920x1080] 185.53s scene-2-hover-next {"next":{"x":960,"y":79,"w":175,"h":58}}
+[1920x1080] 187.03s scene-2-click-next 
+[1920x1080] 197.68s scene-3-settled 
+[1920x1080] 198.32s s3-mouse-L 
+[1920x1080] 201.86s s3-mouse-R 
+[1920x1080] 204.46s s3-mouse-C 
+[1920x1080] 225.30s scene-3-gesture-0 
+[1920x1080] 227.19s scene-3-hover-next {"next":{"x":960,"y":79,"w":175,"h":58}}
+[1920x1080] 228.65s scene-3-click-next 
+[1920x1080] 238.98s scene-4-settled 
+[1920x1080] 239.90s s4-mouse-L 
+[1920x1080] 242.46s s4-mouse-R 
+[1920x1080] 245.85s s4-mouse-C 
+[1920x1080] 267.32s scene-4-gesture-0 
+[1920x1080] 270.23s scene-4-hover-next {"next":{"x":960,"y":79,"w":175,"h":58}}
+[1920x1080] 271.75s scene-4-click-next 
+[1920x1080] 281.75s scene-5-settled 
+[1920x1080] 282.18s s5-mouse-L 
+[1920x1080] 285.45s s5-mouse-R 
+[1920x1080] 288.11s s5-mouse-C 
+[1920x1080] 306.43s scene-5-gesture-0 
+[1920x1080] 317.37s scene-5-gesture-1 
+[1920x1080] 339.60s scene-5-gesture-2 
+[1920x1080] 364.06s scene-5-gesture-3 
+[1920x1080] 371.68s scene-5-no-next 
+[1920x1080] 372.35s end 
+[1920x1080] 1984 frames over 372.4 s

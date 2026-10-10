@@ -52,7 +52,7 @@ things touch; a thin warm rim light on the top-left edges of every subject.
 ## Preamble (pasted at the top of every prompt)
 
 > Art direction for the project "Terrarium" — keep identical across every
-> image: hand-painted gouache illustration with soft visible brush texture
+> image: a hand-painted gouache ILLUSTRATION (not a photograph, not a 3D render, not photorealistic), flat-ish matte paint with soft visible brush texture
 > and a fine paper grain; no ink outlines, shapes are defined by colour and
 > light; naturalist field-guide plate, calm and precise. Palette: pale
 > celadon fog #C9D8D2, deep moss #1F3A33, lichen yellow #D6C35A, beetle

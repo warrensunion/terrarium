@@ -15,3 +15,11 @@ One line each: the decision, and why. Newest at the bottom.
 - Asexual budding as a population floor (60) — a crash to zero would end the show; the floor keeps evolution going.
 - Main thread interpolates between the last two worker snapshots — smooth rendering at any sim speed.
 - Copied `cutout.mjs` and `sheet-boxes.mjs` from BTTRURSLF-v2 unchanged — Warren allowed it and they are tuned for ChatGPT cut-outs.
+- Art generated through ChatGPT via the codex CLI (`gpt-image-bridge` skill, Warren's ChatGPT Plus login), not the chatgpt.com web UI — the built-in browser is signed out of ChatGPT (signing in for him is off-limits) and Claude in Chrome was not connected; same account and image model, prompts logged the same way.
+- `design-taste-frontend` and `image-to-code` skills are not installed here — used `frontend-design` for direction and did image-to-code by hand: two design comps generated first (`art-src/gen/comp-*.png`), then built to match.
+- Display face IM Fell English + text face Hanken Grotesk, self-hosted — a letterpress specimen-book voice fits a naturalist's jar and avoids the overused display serifs; both OFL.
+- Palette celadon fog / deep moss / lichen / beetle violet / spore cyan / peat / salmonberry — a glasshouse palette that avoids the cream+terracotta and black+acid-accent defaults.
+- Playwright pinned to 1.63.0 — the newer default needs browser builds that are not installed; 1.63.0 matches the installed Chromium (as in BTTRURSLF-v2).
+- makemepulse measured with CDP screencast frames (compositor timestamps) instead of screenshots — screenshots are too slow to read easing curves.
+- Intro maps scroll onto makemepulse's authored transitions (scroll scrubs a drift within a scene, crossing a boundary plays the timed transition) — makemepulse has no scroll at all; scrubbing their transitions 1:1 would let a flick skip the craft.
+- PNG measuring/keying tools written in plain node (`art-src/tools/png.mjs`) — no image library dependency.
