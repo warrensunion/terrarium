@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import { WORLD_R, LIGHT_GLSL, lightUniforms, hslLinear, PALETTE } from './look.js';
 import { heightAt } from './terrain.js';
-import { solveTwoBone, stepFeet, resetPair, GAIT } from './ik.js';
+import { solveTwoBone, stepFeet, resetPair, GAIT, legLayout, stepDuration, horizontalReach } from './ik.js';
 
 const MAX_SEG = 7;
 const STRIDE = 10; // frame row: id,x,y,heading,speed,energy,species,age,flags,generation
@@ -296,7 +296,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       const o = (s * MAX_SEG + i) * 3;
       chain[o] = X - fx * SPACING * r * i; chain[o + 2] = Z - fz * SPACING * r * i;
       chain[o + 1] = 0;
-      const gx = chain[o], gz = chain[o + 2], lat = 0.7 * r + 0.55 * leg[s];
+      const gx = chain[o], gz = chain[o + 2], lat = legLayout(r, leg[s], lay).latF;
       resetPair(gait, (s * MAX_SEG + i) * GAIT.SIZE, gx - fz * lat, gz + fx * lat, gx + fz * lat, gz - fx * lat, i & 1);
     }
     lastX[s] = X; lastZ[s] = Z;
@@ -340,6 +340,9 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
   // scratch vectors for IK (reused)
   const hip = { x: 0, y: 0, z: 0 }, tgt = { x: 0, y: 0, z: 0 }, pole = { x: 0, y: 0, z: 0 };
   const knee = { x: 0, y: 0, z: 0 }, end = { x: 0, y: 0, z: 0 };
+  const lay = legLayout(1, 1);
+  /** per-frame counters for the dev page: planted feet the legs could not reach (should stay ~0) */
+  const debug = { unreached: 0, planted: 0 };
 
   function update(prev, next, alpha = 1, dt = 1 / 60) {
     if (!next || !next.creatures) return;
@@ -352,6 +355,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     const ePos = eA.aPos.array, eLook = eA.aLook.array;
     const hPos = hA.aPos.array, hK = hA.aK.array;
     let ns = 0, nb = 0, ne = 0;
+    debug.unreached = 0; debug.planted = 0;
     const bobAmt = reduced ? 0 : 0.15;
     const liftAmt = reduced ? 0.18 : 0.5;
 
@@ -392,9 +396,8 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         chain[c] = chain[p] + (dx / d) * sp;
         chain[c + 2] = chain[p + 2] + (dz / d) * sp;
       }
-      const bodyY = Math.min(0.8 * r, 0.8 * L);
-      const stepDur = Math.max(0.05, Math.min(0.16, (0.45 * L) / (speedEst[s] + 1e-3)));
-      const thr = 0.9 * L;
+      const bodyY = legLayout(r, L, lay).bodyY;
+      const stepDur = stepDuration(L, speedEst[s]);
       let mx = 0, my = 0, mz = 0;
       const selected = s === selectedSlot ? 1 : 0;
 
@@ -409,7 +412,8 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         const gx = chain[c], gz = chain[c + 2];
         const ground = heightAt(gx / WORLD_R, gz / WORLD_R);
         const bob = bobAmt * r * Math.abs(Math.sin(phase[s] + i * 0.9));
-        const gy = ground + (bodyY + bob) * env + (1 - env) * -0.4 * r;
+        // births/deaths scale the whole creature (no sinking into the ground), so its legs stay in reach at every size
+        const gy = ground + (bodyY + bob) * env;
         chain[c + 1] = gy;
         mx += gx; my += gy; mz += gz;
 
@@ -425,24 +429,31 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         ns++;
 
         // legs: left and right, planted, IK'd
-        const latR = 0.7 * ri, latF = latR + 0.55 * L * env;
-        const lead = (0.5 - t) * 0.5 * L; // front legs reach forward, rear legs back
+        // (shared geometry with the gait test in ik.test.js: planted feet stay in reach)
+        legLayout(ri, L * env, lay);
+        const latR = lay.latR, latF = lay.latF;
+        const lead = (1 - 2 * t) * lay.lead; // front legs reach forward, rear legs back
+        const hipY = gy - lay.hipDrop;
+        const hlx = gx - fz * latR, hlz = gz + fx * latR, hrx = gx + fz * latR, hrz = gz - fx * latR;
         const go = (s * MAX_SEG + i) * GAIT.SIZE;
         stepFeet(gait, go,
           gx - fz * latF + fx * lead, gz + fx * latF + fz * lead,
           gx + fz * latF + fx * lead, gz - fx * latF + fz * lead,
-          thr, dt, stepDur);
-        const l1 = 0.55 * L * env, l2 = 0.62 * L * env, th = Math.max(0.006, 0.16 * r) * env;
+          lay.threshold, dt, stepDur, 0.3,
+          hlx, hlz, hrx, hrz, horizontalReach(lay.l1, lay.l2, Math.abs(hipY - ground) + 0.3 * lay.l1));
+        const l1 = lay.l1, l2 = lay.l2, th = Math.max(0.006, 0.16 * r) * env;
         const lr = rgb[o] * 0.5 + 0.02, lg = rgb[o + 1] * 0.45 + 0.016, lb = rgb[o + 2] * 0.42 + 0.012;
         for (let side = 0; side < 2; side++) {
           const sg = side === 0 ? 1 : -1;
           const FX = side === 0 ? GAIT.LX : GAIT.RX, FT = side === 0 ? GAIT.LT : GAIT.RT;
-          hip.x = gx - fz * latR * sg; hip.y = gy; hip.z = gz + fx * latR * sg;
+          hip.x = sg > 0 ? hlx : hrx; hip.y = hipY; hip.z = sg > 0 ? hlz : hrz;
           const footX = gait[go + FX], footZ = gait[go + FX + 1], st = gait[go + FT];
+          if (st < 0) debug.planted++;
           tgt.x = footX; tgt.z = footZ;
           tgt.y = heightAt(footX / WORLD_R, footZ / WORLD_R) + (st >= 0 ? Math.sin(st * Math.PI) * liftAmt * L : 0);
           pole.x = hip.x - fz * L * sg; pole.y = hip.y + 1.6 * L; pole.z = hip.z + fx * L * sg;
-          solveTwoBone(hip, tgt, l1, l2, pole, knee, end);
+          // a planted foot the legs cannot reach steps next frame instead of skating
+          if (!solveTwoBone(hip, tgt, l1, l2, pole, knee, end).reached && st < 0) { gait[go + (side === 0 ? GAIT.LF : GAIT.RF)] = 1; debug.unreached++; }
           let b = nb * 4;
           bA_[b] = hip.x; bA_[b + 1] = hip.y; bA_[b + 2] = hip.z; bA_[b + 3] = th;
           bB[b] = knee.x; bB[b + 1] = knee.y; bB[b + 2] = knee.z; bB[b + 3] = th * 0.8;
@@ -511,7 +522,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
   }
 
   return {
-    add, remove, update, pick, positionOf,
+    add, remove, update, pick, positionOf, debug,
     /** highlight one creature (or null) with a lichen rim */
     setSelected(id) { const s = id == null ? undefined : slotOf.get(id); selectedSlot = s === undefined ? -1 : s; },
     setReducedMotion(v) { reduced = !!v; },

@@ -34,7 +34,8 @@ export function createStage(container, { bodyFromGenes, reducedMotion = false, m
   container.append(canvas);
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(pixelRatio || Math.min(2, globalThis.devicePixelRatio || 1));
+  const dpr = () => pixelRatio || Math.min(2, globalThis.devicePixelRatio || 1);
+  renderer.setPixelRatio(dpr());
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.03, 200);
 
@@ -51,18 +52,54 @@ export function createStage(container, { bodyFromGenes, reducedMotion = false, m
   const ndc = new THREE.Vector2(), buf = new THREE.Vector2();
   let prev = null, next = null, time = 0, disposed = false;
 
-  // art is optional: the jar is fully procedural without it
-  Promise.all([loadOptional(ART.moss), loadOptional(ART.soil), loadOptional(ART.backdrop)]).then(([moss, soil, backdrop]) => {
-    if (disposed) return;
+  const textures = [];
+
+  /**
+   * Warm-up, so the first visible seconds are not spent compiling shaders and
+   * uploading textures (that was 33–166 ms frames for ~3 s): load the optional
+   * art, upload it, compile every program (scene into the MSAA target, and the
+   * grade pass), then (once the first frame arrives, waiting up to 1.5 s) draw a few
+   * full frames offscreen. Resolves even if art is missing
+   * or compilation fails, so the screen is never stuck behind it.
+   */
+  const ready = (async () => {
+    // art is optional: the jar is fully procedural without it
+    const [moss, soil, backdrop] = await Promise.all([loadOptional(ART.moss), loadOptional(ART.soil), loadOptional(ART.backdrop)]);
+    for (const t of [moss, soil, backdrop]) if (t) textures.push(t);
+    if (disposed) { for (const t of textures) t.dispose(); return; }
     terrain.userData.setTextures({ moss, soil });
     jar.setBackdrop(backdrop);
-  });
+    try {
+      for (const t of textures) renderer.initTexture(t);
+      jar.update(camera, buf.x, buf.y);
+      renderer.setRenderTarget(grade.target);
+      await renderer.compileAsync(scene, camera);
+      renderer.setRenderTarget(null);
+      await grade.compileAsync();
+      if (disposed) return;
+      // a few full frames with real creatures, offscreen: uploads the instance buffers and lets
+      // the JIT tier up creatures.update (otherwise the first ~6 visible frames take 35–50 ms)
+      const t0 = performance.now();
+      while (!next && !disposed && performance.now() - t0 < 1500) await new Promise((r) => setTimeout(r, 30));
+      for (let i = 0; i < 4 && !disposed; i++) {
+        if (next) { creatures.update(prev, next, 1, 1 / 60); food.update(next.food); }
+        rig.update(0);
+        grade.render(scene, camera, 0);
+      }
+    } catch (e) {
+      renderer.setRenderTarget(null);
+      console.info('[terrarium] live warm-up skipped:', e && e.message);
+    }
+  })();
 
   const stage = {
     renderer, scene, camera, rig, creatures, food, particles, canvas,
+    /** resolves once art is uploaded and every shader is compiled: reveal the canvas after this */
+    ready,
     /** match the container's size (call on window resize) */
     resize() {
       const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight);
+      renderer.setPixelRatio(dpr()); // the window may have moved to a screen with another density
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -77,6 +114,7 @@ export function createStage(container, { bodyFromGenes, reducedMotion = false, m
     },
     /** draw one frame; alpha 0..1 = how far between prev and next, dt = seconds since last render */
     render(dt, alpha = 1) {
+      dt = dt > 0.1 ? 0.1 : dt < 0 ? 0 : dt; // a hidden tab must not come back as one huge step
       time += dt;
       lightUniforms.uTime.value = time;
       if (next) creatures.update(prev, next, alpha, dt);
@@ -98,6 +136,8 @@ export function createStage(container, { bodyFromGenes, reducedMotion = false, m
       disposed = true;
       rig.dispose(); creatures.dispose(); food.dispose(); particles.dispose(); jar.dispose(); grade.dispose();
       terrain.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+      for (const t of textures) t.dispose();
+      textures.length = 0;
       renderer.dispose();
       renderer.forceContextLoss(); // WEBGL_lose_context
       canvas.remove();

@@ -253,6 +253,9 @@ export function createJar() {
     },
     dispose() {
       group.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+      // module-level state: a re-created stage must not inherit this one's backdrop
+      backdropUniforms.uBackdrop.value = null;
+      backdropUniforms.uHasBackdrop.value = 0;
     },
   };
 }

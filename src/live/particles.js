@@ -30,7 +30,7 @@ void main() {
   float fade = smoothstep(-0.2, 0.6, y) * smoothstep(7.0, 6.0, y);
   vA = fade * mix(0.25 + 0.75 * shaft, 1.0, vCyan) * (0.6 + 0.4 * sin(t * 1.7 + aSeed.x * 50.0));
   // clamped so a spore drifting past the lens stays a mote, not a bubble
-  gl_PointSize = min(uPx * 0.35, uPx * (0.6 + 1.4 * aSeed.w + vCyan * 1.2) / -mv.z);
+  gl_PointSize = min(uPx * 0.35, uPx * (0.6 + 1.4 * aSeed.w + vCyan * 1.2) / max(-mv.z, 0.05)); // (no divide by ~0 at the lens)
 }`;
 const frag = /* glsl */ `
 uniform vec3 uWarm, uCyan;

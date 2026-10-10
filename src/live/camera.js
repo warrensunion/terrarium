@@ -27,6 +27,7 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
   let orbitDistT = dist; // remembered while following
   let getPos = null;
   let idle = 0, reduced = reducedMotion;
+  let cut = false; // reduced motion: follow/release jump instead of gliding
   const goal = new THREE.Vector3();
   const pointers = new Map();
   let pinch0 = 0, pinchDist0 = 0, moved = 0;
@@ -87,11 +88,13 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
       getPos = fn;
       distT = clamp(1.9, FOLLOW_MIN, FOLLOW_MAX);
       phiT = clamp(phiT, 0.5, 1.15);
+      if (reduced) cut = true;
     },
     release() {
       if (!getPos) return;
       getPos = null;
       distT = orbitDistT;
+      if (reduced) cut = true;
     },
     get following() { return !!getPos; },
     /** total pointer travel (px) of the current/last press: < 6 means it was a click */
@@ -111,6 +114,11 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
         // when left alone the jar turns very slowly on its own, like a display stand
         idle += dt;
         if (!reduced && idle > 5 && pointers.size === 0) thetaT += dt * 0.025 * Math.min(1, (idle - 5) / 3);
+      }
+      if (cut) {
+        // a cut, not a glide: land on the goal this frame
+        cut = false;
+        target.copy(goal); theta = thetaT; phi = phiT; dist = distT;
       }
       const lam = getPos ? 4 : 2.5;
       target.x = damp(target.x, goal.x, lam, dt);
