@@ -16,7 +16,7 @@ import { clamp, p2out, p3inOut } from '../core/ease.js';
 import { createVirtualScroll } from '../core/scroll.js';
 import { createPointer } from './parallax.js';
 import { SCENES, buildScene } from './scenes.js';
-import { TRANSITIONS, crossFade, pushIn } from './transitions.js';
+import { TRANSITIONS, crossFade, pushIn, fogFade } from './transitions.js';
 import { preloader } from './preloader.js';
 import { createGenes } from './genes.js';
 import { createBrain } from './brain.js';
@@ -60,7 +60,7 @@ export default function introScreen(root, { go }) {
     b.className = 'in-dot';
     b.setAttribute('aria-label', `Part ${i + 1}: ${d.title}`);
     b.innerHTML = `<span class="in-dot-label" aria-hidden="true">${d.title}</span>`;
-    b.addEventListener('click', () => goTo(i));
+    b.addEventListener('click', () => goTo(i, { viaRail: true }));
     rail.append(b);
     return b;
   });
@@ -83,6 +83,7 @@ export default function introScreen(root, { go }) {
   let raf = 0, last = performance.now();
   const t0 = last;
   let unlockTimer = 0, idleId = 0, resizeTimer = 0, pendingTo = false;
+  let leaving = false; // terminal: the jar push-in has finished and the route is changing
   const waiters = [];
   let timeScale = 1; // dev hook: slow transitions down to inspect them
   const pointer = createPointer({ idle: touch });
@@ -131,10 +132,15 @@ export default function introScreen(root, { go }) {
     stage.dataset.scene = String(i + 1);
   }
 
-  function settle() {
+  function settle({ initial = false } = {}) {
+    const viaRail = !!play?.viaRail;
     play = null;
     settled = true;
     const s = scenes[cur];
+    // focus must not fall to <body> when the scene holding it hides: give it to the new heading
+    const ae = document.activeElement;
+    const lost = !ae || ae === document.body || scenes.some((o) => o !== s && o.root.contains(ae));
+    if (!initial && !viaRail && lost) s.heading.focus({ preventScroll: true });
     for (const o of scenes) if (o !== s) { show(o, false); o.root.classList.remove('is-beats', 'is-moving'); }
     s.root.classList.remove('is-moving');
     s.root.classList.add('is-beats');
@@ -143,18 +149,18 @@ export default function introScreen(root, { go }) {
     bounds();
     clearTimeout(unlockTimer);
     // a short cooldown, so trackpad inertia from the last flick does not scrub on
-    unlockTimer = setTimeout(() => scroll.state.lock(false), 300);
+    unlockTimer = setTimeout(() => { if (!play && !leaving && !pendingTo) scroll.state.lock(false); }, 300);
     if (cur === 0 && !idleId) prefetchJar();
     while (waiters.length) waiters.shift()();
   }
 
   /** play the authored transition into scene `to` (any distance: the boundary entering `to` is used) */
-  function goTo(to) {
+  function goTo(to, { viaRail = false } = {}) {
     to = clamp(to, 0, 4);
-    if (!started || play || to === cur) return;
+    if (!started || play || leaving || to === cur) return;
     // never show a scene before its art is decoded: wait (input stays held) and go then
     if (!scenes[to].isReady) {
-      if (!pendingTo) { pendingTo = true; scroll.state.lock(true); Promise.all([scenes[to].ready, scenes[to].living?.ready]).then(() => { pendingTo = false; scenes[to].isReady = true; if (!destroyed) { scroll.state.lock(false); goTo(to); } }); }
+      if (!pendingTo) { pendingTo = true; scroll.state.lock(true); Promise.all([scenes[to].ready, scenes[to].living?.ready]).then(() => { pendingTo = false; scenes[to].isReady = true; if (!destroyed && !play && !leaving) { scroll.state.lock(false); goTo(to); } }); }
       return;
     }
     const dir = to > cur ? 1 : -1;
@@ -169,14 +175,14 @@ export default function introScreen(root, { go }) {
     // the arriving scene's scrub position: its start going forward, its end going back
     scenes[to].p = dir > 0 ? 0 : 1;
     scenes[to].living?.enter?.(dir);
-    play = { tr, A, B, t: dir > 0 ? 0 : tr.dur, dir };
+    play = { tr, A, B, t: dir > 0 ? 0 : tr.dur, dir, viaRail };
     cur = to;
     scroll.state.set(dir > 0 ? 0 : 1);
     log('intro part', to + 1);
   }
 
   function openJar() {
-    if (play || !started) return;
+    if (play || !started || leaving) return;
     const s = scenes[4];
     const pv = s.planes.pivot;
     scroll.state.lock(true);
@@ -184,7 +190,7 @@ export default function introScreen(root, { go }) {
     s.root.classList.add('is-moving');
     const dummy = { planes: {}, copy: { o: 1 }, root: { x: 0, y: 0, s: 1, o: 1, card: 0 } };
     play = {
-      tr: reduced ? crossFade : pushIn, A: s, B: { view: dummy, root: null }, t: 0, dir: 1,
+      tr: reduced ? fogFade : pushIn, A: s, B: { view: dummy, root: null }, t: 0, dir: 1,
       jar: [pv.cx, pv.cy + pv.el.offsetHeight * 0.1],
       done: () => go('#/live'),
     };
@@ -193,7 +199,10 @@ export default function introScreen(root, { go }) {
   function prefetchJar() {
     // the jar screen uses three.js: fetch it while people read, when the browser is idle
     const ric = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
-    idleId = ric(() => { import('three').then(() => log('prefetched three')).catch(() => {}); }, { timeout: 4000 });
+    idleId = ric(() => {
+      import('three').then(() => log('prefetched three')).catch(() => {});
+      import('../live/screen.js').then(() => log('prefetched the jar screen')).catch(() => {});
+    }, { timeout: 4000 });
   }
 
   // ---- the frame ----------------------------------------------------------
@@ -219,7 +228,7 @@ export default function introScreen(root, { go }) {
     const f = `${ui.fog.o.toFixed(3)}|${ui.fog.y.toFixed(1)}`;
     if (f !== ui.fog.last) {
       fog.style.opacity = ui.fog.o.toFixed(3);
-      fog.style.transform = reduced ? '' : `translate3d(0,${ui.fog.y.toFixed(1)}px,0)`;
+      fog.style.transform = `translate3d(0,${ui.fog.y.toFixed(1)}px,0)`; // reduced motion only ever sets a static offset
       fog.style.visibility = ui.fog.o > 0.001 ? 'visible' : 'hidden';
       ui.fog.last = f;
     }
@@ -251,17 +260,23 @@ export default function introScreen(root, { go }) {
       const tt = clamp(play.t, 0, play.tr.dur);
       const vis = play.tr.run(tt, A.view, B.view, ui, { W, H, jar: play.jar });
       // the departing scene's words leave first (0.35 s), whichever way we travel
-      const leaving = play.dir > 0 ? A : B;
-      if (leaving.copy) leaving.copy.mod.o = 1 - p2out(clamp((play.dir > 0 ? tt : play.tr.dur - tt) / 0.35, 0, 1));
+      const departing = play.dir > 0 ? A : B;
+      if (departing.copy) departing.copy.mod.o = 1 - p2out(clamp((play.dir > 0 ? tt : play.tr.dur - tt) / 0.35, 0, 1));
       show(A, vis.a);
       if (B.root) show(B, vis.b);
       if (vis.a) visible.push(A);
       if (B.root && vis.b) visible.push(B);
       const finished = play.dir > 0 ? play.t >= play.tr.dur : play.t <= 0;
       if (finished && play.done) {
+        // hold this last frame (fog up), input stays locked, until the router swaps screens
         writeUi();
         for (const sc of visible) { for (const k in sc.planes) sc.planes[k].write({ nx: pointer.x, ny: pointer.y, p: sc.p ?? 0, W, H, still: reduced }); writeRoot(sc); }
-        const d = play.done; play = null; d(); return;
+        leaving = true;
+        clearTimeout(unlockTimer);
+        scroll.state.lock(true);
+        stage.inert = true;
+        cancelAnimationFrame(raf);
+        const d = play.done; d(); return;
       }
       if (finished) {
         resetMods(A); if (B.root) resetMods(B);
@@ -290,6 +305,7 @@ export default function introScreen(root, { go }) {
   measureAll();
   if (reduced) for (const sc of scenes) sc.motes.update(0, 0, sc.fxW || W, sc.fxH || H);
   scroll.state.lock(true);
+  if (preloader.active) stage.inert = true; // nothing behind the curtain is reachable
   raf = requestAnimationFrame(frame);
 
   (async () => {
@@ -300,7 +316,8 @@ export default function introScreen(root, { go }) {
     else if (!param('scene') && !reduced) await revealFromCentre(stage);
     if (destroyed) return;
     started = true;
-    settle();
+    stage.inert = false;
+    settle({ initial: true });
     // decode the other scenes' art while people read the first
     Promise.all(scenes.map((sc) => Promise.all([sc.ready, sc.living?.ready]))).then(() => {
       if (destroyed) return;

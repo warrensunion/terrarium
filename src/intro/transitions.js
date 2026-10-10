@@ -132,3 +132,13 @@ export const pushIn = {
     return { a: true, b: false };
   },
 };
+
+/** reduced motion's exit to the jar: no push, the fog simply fills the frame (400 ms) */
+export const fogFade = {
+  dur: 0.4,
+  run(t, A, B, ui, { H }) {
+    ui.fog.y = FOG_COVER * H;
+    ui.fog.o = seg(t, 0, 0.4);
+    return { a: true, b: false };
+  },
+};

@@ -24,5 +24,7 @@
   padding: 14px 26px; border-radius: 999px; background: var(--moss); color: #EEF3EF; text-decoration: none;
   transition: transform .4s var(--e-p2-out);
 }
-.ab-foot .ab-open:hover { transform: scale(.94); }
-@media (prefers-reduced-motion: reduce) { .ab-foot .ab-open { transition: none; } }
+.ab-foot .ab-open:hover { transform: scale(.9); } /* NOTES.md §6: 0.4 s Power2.easeOut to 0.9 */
+.ab-reduced .ab-foot .ab-open { transition: none; }
+.ab-reduced .ab-foot .ab-open:hover { transform: none; }
+.ab-title:focus { outline: none; }

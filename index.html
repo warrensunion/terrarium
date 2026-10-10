@@ -15,7 +15,7 @@
       var q = new URLSearchParams(location.search), f = q.get('preloader');
       var h = location.hash.replace(/^#/, '');
       var intro = !/^\/(live|about)$/.test(h);
-      var on = f === '1';
+      var on = f === '1' && intro;
       if (!on && f !== '0' && !q.get('scene') && intro) {
         try { on = !sessionStorage.getItem('terrarium:preloaded'); } catch (e) { on = true; }
       }
@@ -34,8 +34,14 @@
     .pl-stem { position: absolute; left: 50%; top: 50%; height: 31vh; width: calc(31vh * 40 / 300); transform: translate(-50%, -50%); overflow: visible;
       opacity: 0; transition: opacity .3s cubic-bezier(.215,.61,.355,1); }
     .pl-stem path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-    .pl-guide { stroke: #1F3A33; stroke-opacity: .2; stroke-width: 1.2; stroke-dasharray: 2.5 4; }
-    .pl-trace { stroke: #1F3A33; stroke-opacity: .8; stroke-width: 1.7; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+    .pl-guide { stroke: #1F3A33; stroke-opacity: .22; stroke-width: 1.2; stroke-dasharray: 2.5 4; }
+    /* the traced stroke: deep moss on a cream halo, crisp on fog paper (2.4 px at any size) */
+    .pl-halo { stroke: #FFF4D6; stroke-opacity: .85; stroke-width: 6; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+    .pl-trace { stroke: #1F3A33; stroke-width: 2.4; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+    .pl-tip { position: absolute; left: 0; top: 0; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%;
+      background: #1F3A33; box-shadow: 0 0 0 3px #FFF4D6, 0 0 14px 4px rgba(255, 244, 214, .9); opacity: 0; will-change: transform; }
+    .pl-guide-on .pl-tip { opacity: 1; transition: opacity .3s; }
+    .pl-traced .pl-tip { opacity: 0; }
     .pl-guide-on .pl-stem { opacity: 1; }
     .pl-traced .pl-stem { opacity: 0; }
     .pl-disc { --pop: .6; --breath: 1; --grow: 1; --d: min(58vh, 84vw);
@@ -47,7 +53,7 @@
     .pl-word { font: 400 clamp(30px, 4.8vh, 46px)/1 'IM Fell English', Georgia, serif; color: #1F3A33; }
     .pl-num { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); opacity: 0;
       font: 500 13px/1 'Hanken Grotesk', system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #1F3A33; }
-    .pl-reduced .pl-stem { display: none; }
+    .pl-reduced .pl-stem, .pl-reduced .pl-tip { display: none; }
     .pl-reduced .pl-disc { opacity: 1 !important; transform: none; }
     .pl-reduced .pl-num { opacity: .75; }
     .pl-reduced.pl-pop .pl-num { opacity: 0; }
@@ -57,8 +63,10 @@
   <div id="pl" class="pl" role="progressbar" aria-label="Loading Terrarium" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
     <svg class="pl-stem" viewBox="0 0 40 300" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <path class="pl-guide" d="M21 300 C 9 268, 31 246, 22 214 S 7 160, 19 128 S 34 74, 23 46 S 14 12, 20 0"/>
+      <path class="pl-halo" pathLength="1" d="M21 300 C 9 268, 31 246, 22 214 S 7 160, 19 128 S 34 74, 23 46 S 14 12, 20 0"/>
       <path class="pl-trace" pathLength="1" d="M21 300 C 9 268, 31 246, 22 214 S 7 160, 19 128 S 34 74, 23 46 S 14 12, 20 0"/>
     </svg>
+    <span class="pl-tip" aria-hidden="true"></span>
     <div class="pl-disc" aria-hidden="true">
       <img class="pl-sprout" src="/art/preloader-sprout.webp" alt="" onerror="this.remove()">
       <span class="pl-word">Terrarium</span>

@@ -72,7 +72,7 @@ export function createBrain(host, { reduced, touch }) {
     },
     /** client coords from the stage's pointer listener */
     pointer(cx, cy) {
-      if (!rect) return;
+      if (!rect || reduced) return; // reduced motion: the seed stays put
       pointerAt = performance.now();
       seed.tx = clamp(cx - rect.left, ground.x0, ground.x1);
       seed.ty = clamp(cy - rect.top, ground.y0, ground.y1);
@@ -80,7 +80,7 @@ export function createBrain(host, { reduced, touch }) {
     update(dt, t) {
       if (!W) return;
       // seed: held by the pointer, or wandering on its own (touch, or a still mouse)
-      if (performance.now() - pointerAt > 2500 || touch) {
+      if (!reduced && (performance.now() - pointerAt > 2500 || touch)) {
         const gx = (ground.x0 + ground.x1) / 2, gw = (ground.x1 - ground.x0) / 2;
         const gy = (ground.y0 + ground.y1) / 2, gh = (ground.y1 - ground.y0) / 2;
         seed.tx = gx + Math.sin(t * 0.21) * gw * 0.85;
@@ -116,8 +116,8 @@ export function createBrain(host, { reduced, touch }) {
       } else {
         cr.a = Math.atan2(dy, dx);
       }
-      cr.e = Math.max(0.05, cr.e - dt * 0.035);
-      if (o[2] > 0 && dist < W * 0.045 && visible) {
+      if (!reduced) cr.e = Math.max(0.05, cr.e - dt * 0.035);
+      if (!reduced && o[2] > 0 && dist < W * 0.045 && visible) {
         cr.e = Math.min(1, cr.e + 0.35);
         seed.gone = 0.9; // a beat before a new seed appears
         respawn();
@@ -135,7 +135,7 @@ export function createBrain(host, { reduced, touch }) {
     drawNet(t);
     // seed
     if (seed.gone <= 0 && seedImg) {
-      const s = W * 0.05 * (0.6 + 0.4 * seed.shown) * (1 + Math.sin(t * 3) * 0.04);
+      const s = W * 0.05 * (0.6 + 0.4 * seed.shown) * (reduced ? 1 : 1 + Math.sin(t * 3) * 0.04);
       ctx.globalAlpha = seed.shown;
       ctx.drawImage(seedImg, seed.x - s / 2, seed.y - s / 2, s, s);
       ctx.globalAlpha = 1;

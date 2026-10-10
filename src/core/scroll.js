@@ -78,13 +78,15 @@ export function createVirtualScroll(el, { unit = () => innerHeight * 0.9, onInte
     onInput();
   };
   const onTouchStart = (e) => {
-    if (e.touches.length !== 1) return;
+    // a second finger means pinch-zoom (WCAG 1.4.4): stop scrubbing and leave the gesture to the browser
+    if (e.touches.length !== 1) { touching = false; return; }
     touching = true;
     touchY = touchStartY = e.touches[0].clientY;
     touchStartT = performance.now();
   };
   const onTouchMove = (e) => {
     if (!touching) return;
+    if (e.touches.length > 1) { touching = false; return; }
     const y = e.touches[0].clientY;
     // a finger drag scrubs a little faster than the wheel: thumbs travel less
     state.add(((touchY - y) / unit()) * 1.4);

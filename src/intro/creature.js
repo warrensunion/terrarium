@@ -54,13 +54,22 @@ function bake(img, filter, crop, mirror = false) {
  * canvas source can cost a GPU snapshot per call, a bitmap is uploaded once.
  */
 const SHARED = new Map();
+const MAX_SETS = 40;
+const each = (set, fn) => { fn(set, 'head'); fn(set, 'tail'); for (const arr of [set.segs, set.legs, set.farLegs]) for (let i = 0; i < arr.length; i++) fn(arr, i); };
 function remember(key, set) {
   SHARED.set(key, set);
-  if (SHARED.size > 24) SHARED.delete(SHARED.keys().next().value);
+  if (SHARED.size > MAX_SETS) {
+    // evict the oldest set and free its GPU bitmaps; a creature still holding it rebakes (see sprites())
+    const k = SHARED.keys().next().value;
+    const old = SHARED.get(k);
+    SHARED.delete(k);
+    old.closed = true;
+    each(old, (o, i) => o[i]?.close?.());
+  }
   if (typeof createImageBitmap !== 'function') return;
   const swap = (obj, k) => {
     const c = obj[k];
-    if (c) createImageBitmap(c).then((bm) => { obj[k] = bm; }, () => {});
+    if (c) createImageBitmap(c).then((bm) => { if (set.closed) bm.close(); else obj[k] = bm; }, () => {});
   };
   swap(set, 'head'); swap(set, 'tail');
   for (const arr of [set.segs, set.legs, set.farLegs]) for (let i = 0; i < arr.length; i++) swap(arr, i);
@@ -68,7 +77,7 @@ function remember(key, set) {
 
 /** the colour genes as a filter string, quantised so scrubbing does not rebake every frame */
 export function geneFilter(g, extra = '') {
-  const h = Math.round(g.hue / 4) * 4;
+  const h = Math.round(g.hue / 12) * 12; // 12 deg steps: a visible change, a tenth of the rebakes
   const s = Math.round(g.sat * 20) / 20;
   const c = Math.round(g.contrast * 20) / 20;
   return `hue-rotate(${h}deg) saturate(${s}) contrast(${c})${extra ? ' ' + extra : ''}`;
@@ -82,10 +91,10 @@ export function createCreature(kit, genes = {}) {
 
   function sprites() {
     const key = geneFilter(g);
-    if (key === bakedKey && baked) return baked;
+    if (key === bakedKey && baked && !baked.closed) return baked;
     bakedKey = key;
     const ck = kit.name + '|' + key;
-    if (SHARED.has(ck)) return (baked = SHARED.get(ck));
+    if (SHARED.has(ck)) { baked = SHARED.get(ck); SHARED.delete(ck); SHARED.set(ck, baked); return baked; } // LRU touch
     const m = spec.flip; // lichen is painted facing right: mirror each part, not the layout
     baked = {
       head: bake(imgs[0], key, spec.head.crop, m),
@@ -127,7 +136,13 @@ export function createCreature(kit, genes = {}) {
     genes: g,
     set(next) { Object.assign(g, next); },
     /** bake the sprites now (idle time) instead of on the first frame a scene shows */
-    warm() { sprites(); },
+    /** bake now (idle time) instead of on a scene's first frame; `hues` pre-bakes a scrub path too */
+    warm(hues = []) {
+      const h0 = g.hue;
+      for (const h of hues) { g.hue = h; sprites(); }
+      g.hue = h0;
+      sprites();
+    },
     get length() { return layout(sprites()).length * this.scaleOf(1); },
     scaleOf(u) { return u * (0.75 + 0.5 * (g.size - 0.8)); },
     /** turn smoothly: the body squashes through its own width, like turning round */
