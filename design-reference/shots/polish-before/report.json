@@ -1,0 +1,37 @@
+{
+ "failures": [],
+ "report": {
+  "390": {
+   "logs": [
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x"
+   ],
+   "backend": "webgpu",
+   "hiddenSteps": 80
+  },
+  "1440": {
+   "logs": [
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x"
+   ],
+   "backend": "webgpu",
+   "fps-1x": {
+    "fps": 60.1,
+    "p50": 16.7,
+    "p95": 16.7,
+    "population": 547,
+    "mainThreadMs": 3.18
+   },
+   "fps-16x": {
+    "fps": 59.9,
+    "p50": 16.7,
+    "p95": 16.8,
+    "population": 806,
+    "mainThreadMs": 3.08
+   },
+   "hiddenSteps": 176
+  }
+ }
+}

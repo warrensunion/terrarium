@@ -20,7 +20,16 @@ import { projectedPx, lodFor, LOD_FAR, LOD_MID, LOD_FULL } from './lod.js';
 const MAX_SEG = 7;
 const STRIDE = 10; // frame row: id,x,y,heading,speed,energy,species,age,flags,generation
 const SPACING = 1.6;
-const SPECIES_TINT = 0.35;
+// Species is the shared identity, so it carries most of the colour. (The brief said 35%;
+// with the real sim's genes that read as pale grey at 1000 creatures, so the lead asked
+// for more: 60%.) The body's own hue still varies each animal within its species.
+const SPECIES_TINT = 0.6;
+// The genes give sat 0.35–0.85 and light 0.45–0.7, which after the grade's matte
+// desaturation is pastel. Paint them richer and a little darker (renderer only):
+const paintSat = (v) => 0.5 + Math.min(1, Math.max(0, (v - 0.35) / 0.5)) * 0.28;    // 0.5..0.78
+const paintLight = (v) => 0.32 + Math.min(1, Math.max(0, (v - 0.45) / 0.25)) * 0.18; // 0.32..0.5 (tops catch the full key light)
+// each species also gets its own value (lighter or darker) so neighbours separate
+const speciesValue = (id) => ((((id * 0.6180339) % 1) + 1) % 1 - 0.5) * 0.14;
 // each segment's gait phase is 0.9 rad behind the one ahead; stepping sin/cos by this
 // rotation replaces ~20k Math.sin/cos calls a frame at 1000 creatures
 const SEG_PH = 0.9, C_PH = Math.cos(SEG_PH), S_PH = Math.sin(SEG_PH);
@@ -81,7 +90,7 @@ void main() {
   }
   // starving creatures fade toward grey
   float e = clamp(vCol.a, 0.0, 1.0);
-  alb = mix(vec3(dot(alb, vec3(0.3, 0.55, 0.15))) * 0.8, alb, 0.45 + 0.55 * e);
+  alb = mix(vec3(dot(alb, vec3(0.3, 0.55, 0.15))) * 0.8, alb, 0.72 + 0.28 * e);
   // gouache brush grain
   alb *= 0.93 + 0.14 * lvNoise(vObj.xy * 6.0 + vObj.z * 3.0 + seed * 17.0);
   float ao = smoothstep(-1.0, 0.3, vObj.y) * 0.75 + 0.25;
@@ -258,7 +267,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       specHue[s] = -1;
       return;
     }
-    hslLinear(hue, bodyHSL[o + 1], bodyHSL[o + 2], tmpRGB);
+    hslLinear(hue, Math.min(0.72, Math.max(0.6, bodyHSL[o + 1])), Math.min(0.55, Math.max(0.28, bodyHSL[o + 2] + speciesValue(spec[s]))), tmpRGB);
     for (let k = 0; k < 3; k++) rgb[o + k] = bodyRGB[o + k] * (1 - SPECIES_TINT) + tmpRGB[k] * SPECIES_TINT;
     specHue[s] = hue;
   }
@@ -274,8 +283,8 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     pattern[s] = b.pattern | 0;
     seed[s] = (birth.id * 0.618034) % 1;
     const o = s * 3;
-    bodyHSL[o] = b.hue; bodyHSL[o + 1] = b.sat; bodyHSL[o + 2] = b.light;
-    hslLinear(b.hue, b.sat, b.light, tmpRGB);
+    bodyHSL[o] = b.hue; bodyHSL[o + 1] = paintSat(b.sat); bodyHSL[o + 2] = paintLight(b.light);
+    hslLinear(b.hue, bodyHSL[o + 1], bodyHSL[o + 2], tmpRGB);
     bodyRGB[o] = tmpRGB[0]; bodyRGB[o + 1] = tmpRGB[1]; bodyRGB[o + 2] = tmpRGB[2];
     spec[s] = birth.species ?? -1;
     recolor(s);
@@ -412,10 +421,14 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       }
       const bodyY = legLayout(r, L, lay).bodyY;
       // how big is this creature on screen? (no view set = always full detail)
-      let lv = LOD_FULL;
+      let lv = LOD_FULL, boost = 1;
       if (pxPerUnit > 0) {
         const cx = X - camX, cy = bodyY - camY, cz = Z - camZ;
-        lv = lodFor(projectedPx(r, Math.sqrt(cx * cx + cy * cy + cz * cz), pxPerUnit), lod[s]);
+        const px = projectedPx(r, Math.sqrt(cx * cx + cy * cy + cz * cz), pxPerUnit);
+        lv = lodFor(px, lod[s]);
+        // at the overview a 5 px body is noise: draw small bodies up to 1.45x (bodies only;
+        // legs keep their real geometry). Fades out by 12 px, so close-ups are true size.
+        if (px < 12) { const u = px <= 5 ? 1 : (12 - px) / 7; boost = 1 + 0.45 * u * u * (3 - 2 * u); }
       }
       const replant = lod[s] === LOD_FAR && lv !== LOD_FAR; // gait state is stale after the analytic swing
       lod[s] = lv;
@@ -447,12 +460,13 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
 
         // segment instance
         let q = ns * 4;
-        aPos[q] = gx; aPos[q + 1] = gy; aPos[q + 2] = gz; aPos[q + 3] = ri;
+        const rv = ri * boost, gv = gy + (boost - 1) * 0.82 * ri; // boosted body sits on the ground, not in it
+        aPos[q] = gx; aPos[q + 1] = gv; aPos[q + 2] = gz; aPos[q + 3] = rv;
         aFwd[q] = fx; aFwd[q + 1] = 0; aFwd[q + 2] = fz; aFwd[q + 3] = pattern[s];
         aCol[q] = rgb[o]; aCol[q + 1] = rgb[o + 1]; aCol[q + 2] = rgb[o + 2]; aCol[q + 3] = energy[s];
         aMisc[q] = t; aMisc[q + 1] = i & 1; aMisc[q + 2] = selected; aMisc[q + 3] = seed[s];
         // contact shadow
-        hPos[q] = gx; hPos[q + 1] = ground + 0.004; hPos[q + 2] = gz; hPos[q + 3] = ri * 1.7;
+        hPos[q] = gx; hPos[q + 1] = ground + 0.004; hPos[q + 2] = gz; hPos[q + 3] = rv * 1.7;
         hK[ns] = 0.75 * env;
         ns++;
 

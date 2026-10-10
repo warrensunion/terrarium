@@ -4,16 +4,71 @@
  * nothing snaps. Orbit by drag (or one finger), zoom by wheel (or pinch),
  * clamped so the jar never leaves view; follow(getPos) glides down onto a
  * creature at λ = 4 and release() glides back out to where you were.
+ *
+ * Framing follows makemepulse: the subject fills the frame. The home distance
+ * is fitted, not tuned: fitView() projects the jar's silhouette (JAR_RINGS) and finds
+ * the distance at which it fills ~88% of the viewport height (or 90% of the
+ * width on narrow screens), and the target height that centres it. Wheel/pinch
+ * zoom is a factor on that fitted distance, so it holds at every aspect.
  */
 import * as THREE from 'three';
 import { damp, clamp } from '../core/ease.js';
 import { heightAt } from './terrain.js';
 import { WORLD_R, JAR_R } from './look.js';
 
-const HOME = new THREE.Vector3(0, 1.9, 0);
 const PHI_MIN = 0.22, PHI_MAX = 1.42;
-const ORBIT_MIN = 7.5, ORBIT_MAX = 26;
+const PHI_HOME = 0.9;               // ~38° above the horizon: the moss floor tilts toward you, a stage
+const ZOOM_MIN = 0.32, ZOOM_MAX = 1.15; // × fitted distance: never inside the glass from orbit, never lost
 const FOLLOW_MIN = 0.7, FOLLOW_MAX = 5;
+// the jar's silhouette as rings (radius, height): base on the table, top of the straight
+// wall, the cork top. A single cylinder to the cork would overstate the top.
+export const JAR_RINGS = [[JAR_R + 0.1, -2.15], [JAR_R + 0.1, 4.7], [3.3, 7.4]];
+const FILL_H = 0.88, FILL_W = 0.9;
+
+/**
+ * Distance and target height at which the jar fills the frame (pure; allocation-free).
+ * @returns {{ dist:number, targetY:number }} written into out
+ */
+export function fitView(phi, aspect, fovYdeg, out = { dist: 20, targetY: 2.6 }, rings = JAR_RINGS) {
+  const tanY = Math.tan((fovYdeg * Math.PI) / 360), tanX = tanY * aspect;
+  const sp = Math.sin(phi), cp = Math.cos(phi);
+  // view basis for theta = 0 (the jar is round, so azimuth does not matter)
+  const fy = -cp, fz = -sp;          // forward (x = 0)
+  const uy = sp, uz = -cp;           // up
+  let ty = (rings[0][1] + rings[rings.length - 1][1]) / 2;
+  const nPts = rings.length * 16;
+  let d = 20;
+  for (let pass = 0; pass < 3; pass++) {
+    let lo = 2, hi = 200;
+    for (let it = 0; it < 40; it++) {
+      d = (lo + hi) / 2;
+      let fits = true;
+      const cy = ty + d * cp, cz = d * sp;
+      for (let k = 0; k < nPts && fits; k++) {
+        const ring = rings[k >> 4], a = (k & 15) * Math.PI / 8, y = ring[1], rr = ring[0];
+        const px = Math.cos(a) * rr, py = y - cy, pz = Math.sin(a) * rr - cz;
+        const depth = py * fy + pz * fz;
+        if (depth <= 0.01) { fits = false; break; }
+        const nx = px / depth / tanX, ny = (py * uy + pz * uz) / depth / tanY;
+        if (Math.abs(nx) > FILL_W || Math.abs(ny) > FILL_H) fits = false;
+      }
+      if (fits) hi = d; else lo = d;
+    }
+    d = hi;
+    // centre it vertically: measure the projected extent and shift the target
+    const cy = ty + d * cp, cz = d * sp;
+    let yMin = 1, yMax = -1;
+    for (let k = 0; k < nPts; k++) {
+      const ring = rings[k >> 4], a = (k & 15) * Math.PI / 8, y = ring[1], rr = ring[0];
+      const py = y - cy, pz = Math.sin(a) * rr - cz;
+      const ny = (py * uy + pz * uz) / (py * fy + pz * fz) / tanY;
+      if (ny < yMin) yMin = ny; if (ny > yMax) yMax = ny;
+    }
+    ty += ((yMin + yMax) / 2) * d * tanY / Math.max(0.3, sp);
+  }
+  out.dist = d; out.targetY = ty;
+  return out;
+}
 
 /**
  * @param {THREE.PerspectiveCamera} camera
@@ -21,10 +76,13 @@ const FOLLOW_MIN = 0.7, FOLLOW_MAX = 5;
  * @param {{ reducedMotion?:boolean }} [opts]
  */
 export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
-  const target = HOME.clone();
-  let theta = -0.32, phi = 1.02, dist = 24;
+  const fit = fitView(PHI_HOME, camera.aspect || 1.6, camera.fov);
+  const home = new THREE.Vector3(0, fit.targetY, 0);
+  const target = home.clone();
+  let theta = -0.32, phi = PHI_HOME, dist = fit.dist;
   let thetaT = theta, phiT = phi, distT = dist;
-  let orbitDistT = dist; // remembered while following
+  let zoom = 1;          // orbit distance = fitted distance × zoom
+  let followDistT = 1.9; // follow distance (wheel/pinch adjust it while following)
   let getPos = null;
   let idle = 0, reduced = reducedMotion;
   let cut = false; // reduced motion: follow/release jump instead of gliding
@@ -38,7 +96,7 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
     dom.setPointerCapture?.(e.pointerId);
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
-      pinch0 = Math.hypot(a.x - b.x, a.y - b.y); pinchDist0 = distT;
+      pinch0 = Math.hypot(a.x - b.x, a.y - b.y); pinchDist0 = getPos ? followDistT : zoom;
     }
   };
   const onMove = (e) => {
@@ -55,7 +113,7 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
     } else if (pointers.size === 2 && pinch0 > 0) {
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      setDist(pinchDist0 * (pinch0 / Math.max(1, d)));
+      setZoom(pinchDist0 * (pinch0 / Math.max(1, d)));
     }
   };
   const onUp = (e) => {
@@ -66,14 +124,12 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
     e.preventDefault();
     idle = 0;
     const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-    setDist(distT * Math.exp(clamp(dy, -200, 200) * 0.0012));
+    setZoom((getPos ? followDistT : zoom) * Math.exp(clamp(dy, -200, 200) * 0.0012));
   };
-  function setDist(d) {
-    distT = getPos ? clamp(d, FOLLOW_MIN, FOLLOW_MAX) : clamp(d, ORBIT_MIN, ORBIT_MAX * fitScale());
+  function setZoom(v) {
+    if (getPos) followDistT = clamp(v, FOLLOW_MIN, FOLLOW_MAX);
+    else zoom = clamp(v, ZOOM_MIN, ZOOM_MAX);
   }
-  // narrow screens need more distance to show the whole jar
-  // (the jar is ~11 units wide; past this aspect its width, not its height, sets the distance)
-  const fitScale = () => Math.max(1, 0.7 / Math.max(0.3, camera.aspect));
 
   dom.addEventListener('pointerdown', onDown);
   dom.addEventListener('pointermove', onMove);
@@ -81,19 +137,17 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
   dom.addEventListener('pointercancel', onUp);
   dom.addEventListener('wheel', onWheel, { passive: false });
 
-  let lastFit = fitScale();
   const rig = {
     follow(fn) {
-      if (!getPos) orbitDistT = distT;
       getPos = fn;
-      distT = clamp(1.9, FOLLOW_MIN, FOLLOW_MAX);
+      followDistT = 1.9;
       phiT = clamp(phiT, 0.5, 1.15);
       if (reduced) cut = true;
     },
     release() {
       if (!getPos) return;
       getPos = null;
-      distT = orbitDistT;
+      phiT = PHI_HOME;
       if (reduced) cut = true;
     },
     get following() { return !!getPos; },
@@ -102,15 +156,17 @@ export function createCameraRig(camera, dom, { reducedMotion = false } = {}) {
     setReducedMotion(v) { reduced = !!v; },
     update(dt) {
       dt = Math.min(dt, 0.1);
-      const fit = fitScale();
-      if (!getPos && fit !== lastFit) { distT *= fit / lastFit; lastFit = fit; }
+      // refit when the aspect or the tilt changes (the jar keeps filling the frame)
+      const a = camera.aspect, pq = Math.round(phiT * 100);
+      if (a !== fit.aspect || pq !== fit.phiQ) { fitView(pq / 100, a, camera.fov, fit); fit.aspect = a; fit.phiQ = pq; home.y = fit.targetY; }
+      distT = getPos ? followDistT : fit.dist * zoom;
       if (getPos) {
         const p = getPos();
         if (!p) rig.release();
         else goal.copy(p);
       }
       if (!getPos) {
-        goal.copy(HOME);
+        goal.copy(home);
         // when left alone the jar turns very slowly on its own, like a display stand
         idle += dt;
         if (!reduced && idle > 5 && pointers.size === 0) thetaT += dt * 0.025 * Math.min(1, (idle - 5) / 3);
