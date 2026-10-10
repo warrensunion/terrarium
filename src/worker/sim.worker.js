@@ -1,8 +1,10 @@
 /**
  * The world lives here, off the main thread, so a 16x frame of stepping
  * never costs the renderer a frame. The main thread asks for N steps once
- * per rAF and always gets exactly one frame back (even for 0 steps), with
- * its typed arrays transferred rather than copied.
+ * per rAF and always gets exactly one answer back: a frame (even for 0
+ * steps, and an empty one before init), with its typed arrays transferred
+ * rather than copied, or `{type:'error', message, request}` if handling
+ * failed. An error ends that request; no frame follows for it.
  *
  * Sensing goes to WebGPU when the worker can get an adapter and device,
  * otherwise to the CPU grid; the choice and its reason are posted in
@@ -10,10 +12,12 @@
  * If the device is lost mid-run the world quietly falls back to the CPU.
  *
  * A GPU readback takes milliseconds of latency, far longer than a step, so
- * awaiting one per step made 16x run at half the CPU's speed. Readbacks
- * are therefore overlapped with up to MAX_LAG steps of CPU work: at 1x the
- * inputs are exactly one step late (as sense-gpu.js documents), at 4x/16x
- * at most four steps (67 ms of sim time), which creatures cannot tell.
+ * awaiting one per step made 16x run at half the CPU's speed. Steps are
+ * therefore run in chunks of up to CHUNK: a chunk launches a sense on the
+ * current positions, runs its steps on the previous readback, then awaits
+ * its own. A readback taken before a chunk drives the next chunk's steps,
+ * so inputs are k..2k-1 steps old for chunks of k: exactly one step at 1x
+ * and at most 2·CHUNK-1 steps at 4x/16x.
  *
  * Messages are handled strictly in order through one promise chain (GPU
  * steps await a readback). If step requests pile up faster than they can
@@ -23,6 +27,11 @@
  * ?simcheck=1 (forwarded as `simcheck: true` in `init`, or on the worker
  * URL) senses the same world once on each backend and logs the largest
  * difference: '[terrarium] simcheck max abs diff: <d>'.
+ *
+ * For tests only: `{type:'debug-kill', id}` makes that creature die at the
+ * next step through the normal death path, so it shows up in `deaths`
+ * and, if inspected, as `dead` (the shoot script checks the
+ * "followed creature died" UI with it).
  */
 import { createWorld, packFrame } from '../sim/world.js';
 import { senseCPU } from '../sim/sense-cpu.js';
@@ -40,7 +49,8 @@ let carryDeaths = []; // ids from a world replaced by reset, not yet reported
 let carryDead = null;
 let queue = Promise.resolve();
 let pendingSteps = 0;
-const MAX_LAG = 4; // steps a GPU readback may trail by, so its latency hides behind CPU work
+const CHUNK = 2; // GPU steps per readback; inputs are up to 2·CHUNK-1 steps old
+const MAX_STALE = 2 * CHUNK - 1;
 
 const urlSimcheck = (() => {
   try {
@@ -55,7 +65,7 @@ self.onmessage = (e) => {
   if (msg?.type === 'step') pendingSteps++;
   queue = queue.then(() => handle(msg)).catch((err) => {
     console.error('[terrarium] sim worker:', err);
-    self.postMessage({ type: 'error', message: String(err?.message || err) });
+    self.postMessage({ type: 'error', message: String(err?.message || err), request: msg?.type ?? null });
   });
 };
 
@@ -70,7 +80,10 @@ async function handle(msg) {
       return;
     case 'step':
       pendingSteps--;
-      if (!world) return;
+      if (!world) {
+        self.postMessage(emptyFrame());
+        return;
+      }
       await runSteps(Math.ceil((msg.steps | 0) / Math.max(1, pendingSteps)));
       postFrame();
       return;
@@ -84,6 +97,9 @@ async function handle(msg) {
     case 'reset':
       if (!world) return;
       reset(msg.seed ?? config.seed + 1);
+      return;
+    case 'debug-kill':
+      world?.kill(msg.id);
       return;
     default:
       return;
@@ -99,7 +115,7 @@ function chooseBackend() {
     } else {
       gpu = res;
       backend = 'webgpu';
-      reason = 'compute sensing, one step late at 1x, at most ' + MAX_LAG + ' at 4x/16x';
+      reason = `compute sensing, inputs 1 step old at 1x, up to ${MAX_STALE} at 4x/16x`;
     }
     console.info('[terrarium] sim backend:', backend, reason);
   })();
@@ -121,14 +137,15 @@ async function runSteps(n) {
       n--;
       continue;
     }
-    // one readback per chunk: exactly one step late at 1x, at most MAX_LAG at 4x/16x
-    const k = Math.min(n, MAX_LAG);
+    const k = Math.min(n, CHUNK);
+    // reads positions now, lands after this chunk and drives the next one;
+    // only a sensing failure means falling back, a step error propagates
+    const sensed = gpu.sense(world).then(() => null, (err) => err);
     try {
-      const sensed = gpu.sense(world); // reads positions now, lands after this chunk
       for (let i = 0; i < k; i++) world.step();
-      await sensed;
-    } catch (err) {
-      fallBack(err);
+    } finally {
+      const err = await sensed; // never leave a readback mapped behind us
+      if (err) fallBack(err);
     }
     n -= k;
   }
@@ -145,7 +162,10 @@ function fallBack(err) {
 
 function reset(seed) {
   const last = packFrame(world, null, since);
-  carryDeaths = carryDeaths.concat(last.deaths, world.creatures.map((c) => c.id));
+  // creatures whose birth was never reported were never added on the main side
+  const unseen = new Set(last.births.map((b) => b.id));
+  const gone = last.deaths.concat(world.creatures.map((c) => c.id)).filter((id) => !unseen.has(id));
+  carryDeaths = carryDeaths.concat(gone);
   if (inspectId != null) {
     carryDead = inspectId;
     inspectId = null;
@@ -168,6 +188,13 @@ function postFrame() {
   const transfer = [frame.creatures.buffer, frame.food.buffer];
   if (frame.inspect) transfer.push(frame.inspect.values.buffer);
   self.postMessage(frame, transfer);
+}
+
+function emptyFrame() {
+  return {
+    type: 'frame', tick: 0, creatures: new Float32Array(0), food: new Float32Array(0), births: [], deaths: [],
+    stats: { tick: 0, population: 0, generation: 0, species: [] }, inspect: null, dead: null,
+  };
 }
 
 /** Sense one world state on both backends and log the largest difference. */

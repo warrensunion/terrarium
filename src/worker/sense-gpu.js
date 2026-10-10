@@ -4,13 +4,13 @@
  * the right shape for a GPU (no grid to build, no divergence beyond the
  * loop) and it frees the worker's CPU for thinking and acting.
  *
- * Results are applied one step late. Reading a buffer back is
- * asynchronous, so the worker starts sense() on the current positions,
- * runs the step on the inputs the previous readback delivered, then awaits
- * this one, whose values feed the next step. A creature therefore reacts
- * to the world as it was 1/60 s ago, which is invisible; newborns see
- * "nothing" for their first step. (At 4x/16x the worker runs up to four
- * steps per readback to hide its latency; see sim.worker.js.)
+ * Results land late. Reading a buffer back is asynchronous, so the worker
+ * starts sense() on the current positions, runs steps on the inputs the
+ * previous readback delivered, then awaits this one, whose values feed
+ * the next steps. At 1x that is exactly one step (1/60 s) late; at 4x/16x
+ * the worker runs up to CHUNK steps per readback to hide its latency, so
+ * inputs are up to 2·CHUNK-1 steps old (see sim.worker.js). Either way a
+ * creature cannot tell; newborns see "nothing" until their first readback.
  *
  * The maths mirror sense-cpu.js exactly (same float32 snapshot, strict <
  * so ties go to the lower index, same relative-angle formula), so the

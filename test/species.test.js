@@ -75,14 +75,24 @@ test('adjustThreshold moves toward the target species count and clamps', () => {
   assert.ok(Math.abs(adjustThreshold(3, 5, 2, 4) - 3.3) < 1e-12, 'custom band');
 });
 
-test('adjustThreshold steers a real population into the 6..14 band', () => {
+test('adjustThreshold steers a real population into the 6..14 band, from above and below', () => {
+  // 20 well-separated lineages of 10: a threshold of 0.5 splits them all, 12 merges them all
   const rng = createRng(30);
   const tracker = createTracker();
-  const pop = Array.from({ length: 200 }, (_, i) => ({ id: i + 1, genome: createGenome(rng, tracker) }));
-  let t = 12, sp = [];
-  for (let round = 0; round < 60; round++) {
-    sp = speciate(pop, [], t, rng, counter(), round);
-    t = adjustThreshold(t, sp.length);
+  const bases = Array.from({ length: 20 }, () => scaled(createGenome(rng, tracker), 4));
+  const pop = Array.from({ length: 200 }, (_, i) => {
+    const b = bases[i % 20];
+    return { id: i + 1, genome: { nodes: b.nodes, conns: b.conns.map((c) => ({ ...c, w: c.w + rng.normal() * 0.1 })) } };
+  });
+  for (const start of [12, 0.5]) {
+    let t = start;
+    const counts = [];
+    for (let round = 0; round < 60; round++) {
+      const sp = speciate(pop, [], t, rng, counter(), round);
+      counts.push(sp.length);
+      t = adjustThreshold(t, sp.length);
+    }
+    assert.ok(counts[0] < 6 || counts[0] > 14, `starts outside the band (${counts[0]})`);
+    for (const n of counts.slice(-10)) assert.ok(n >= 6 && n <= 14, `from ${start}: last counts ${counts.slice(-10)}`);
   }
-  assert.ok(sp.length >= 4 && sp.length <= 20, `${sp.length} species at threshold ${t}`);
 });

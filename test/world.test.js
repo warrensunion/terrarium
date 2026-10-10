@@ -182,3 +182,27 @@ test('a world started with idBase never reuses an earlier world\'s ids', () => {
   const b = createWorld({ seed: 2, count: 100, idBase: a.lastId });
   assert.ok(Math.min(...b.creatures.map((c) => c.id)) > a.lastId);
 });
+
+test('inspecting a creature that is already gone reports it dead', () => {
+  const w = run(createWorld({ seed: 3, count: 100 }), 5);
+  const gone = w.lastId + 50; // never alive in this frame
+  const f = packFrame(w, gone, w.tick);
+  assert.equal(f.dead, gone);
+  assert.equal(f.inspect, null);
+  assert.equal(packFrame(w, null, w.tick).dead, null);
+});
+
+test('kill(id) removes a creature at the next step through the normal death path', () => {
+  const w = run(createWorld({ seed: 4, count: 120, params: { foodRate: 3 } }), 20);
+  const since = w.tick;
+  packFrame(w, null, since);
+  const victim = w.creatures[5];
+  assert.equal(w.kill(victim.id), true);
+  assert.equal(w.kill(-1), false);
+  assert.ok(w.creatures.includes(victim), 'still alive until the step');
+  w.step();
+  assert.ok(!w.creatures.some((c) => c.id === victim.id));
+  const f = packFrame(w, victim.id, since);
+  assert.ok(f.deaths.includes(victim.id));
+  assert.equal(f.dead, victim.id);
+});

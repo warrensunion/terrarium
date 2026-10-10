@@ -11,7 +11,7 @@
  * only created for births, deaths and every-120-step re-speciation.
  *
  * Sensing is injectable (`sensor`): the worker swaps the CPU grid for a
- * WebGPU compute pass that writes the same six inputs one step late.
+ * WebGPU compute pass that writes the same six inputs a few steps late.
  *
  * The population is seeded from 8 founder genomes rather than 600 unrelated
  * ones. Each founder is a weak hand-wired instinct (steer toward food,
@@ -113,6 +113,17 @@ export function createWorld({ seed = 1, count = 600, params = {}, sensor = sense
     indexSpace,
     setParams(p) {
       world.params = cleanParams({ ...world.params, ...p });
+    },
+    /**
+     * Test hook: the creature dies at the next step through the normal
+     * death path. Age is set too, because eating could refill the energy.
+     */
+    kill(id) {
+      const c = world.creatures.find((q) => q.id === id);
+      if (!c) return false;
+      c.energy = 0;
+      c.age = MAX_AGE;
+      return true;
     },
     /** Newest id handed out; a reset world starts after it (idBase). */
     get lastId() {
@@ -406,7 +417,9 @@ export function createWorld({ seed = 1, count = 600, params = {}, sensor = sense
 
 /**
  * The worker → main frame. Births and deaths after `sinceTick` are included
- * and then dropped from the world's log (the caller has them now).
+ * and then dropped from the world's log (the caller has them now). `dead`
+ * is the inspected id whenever that creature is not alive; the caller stops
+ * inspecting it, so the UI hears about the death once.
  */
 export function packFrame(world, inspectId, sinceTick) {
   const cs = world.creatures;
@@ -455,6 +468,8 @@ export function packFrame(world, inspectId, sinceTick) {
         id: c.id, values: c.brain.values.slice(), genome: c.genome, age: c.age, energy: c.energy,
         generation: c.generation, parents: c.parents, lineage, species: c.species, gathered: c.gathered,
       };
+    } else {
+      dead = inspectId; // gone before this frame (e.g. died before the inspect request arrived)
     }
   }
 
