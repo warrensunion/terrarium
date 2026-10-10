@@ -18,19 +18,19 @@ export const SCENES = [
     motes: ['pt-0', 'pt-3', 'pt-5', 'pt-10', 'pt-1', 'pt-11'],
   },
   {
-    title: 'Genes become bodies',
+    title: 'Genes become bodies', lines: ['Genes become', 'bodies'],
     text: 'Every creature carries a short string of genes. Some decide how many segments it has, how long its legs are, how big it grows and what colour it is. Change a gene and the body changes with it.',
     far: 'bg-fog', mid: 'mid-rocks', near: 'fg-moss', live: 'genes',
     motes: ['pt-2', 'pt-7', 'pt-9', 'pt-16', 'pt-5'],
   },
   {
-    title: 'Brains become behaviour',
+    title: 'Brains become behaviour', lines: ['Brains become', 'behaviour'],
     text: 'Each one also has a tiny brain, a handful of neurons wired together. It senses where the nearest food is, who is close by, how much energy it has left and how near the glass is. From that it decides to turn, to walk, to eat or to look for a mate.',
     far: 'bg-fog', mid: 'mid-rocks', near: 'fg-moss', live: 'brain',
     motes: ['pt-6', 'pt-8', 'pt-13', 'pt-15', 'pt-10'],
   },
   {
-    title: 'Generations become species',
+    title: 'Generations become species', lines: ['Generations', 'become species'],
     text: 'Creatures that find food live long enough to have young. Each child is a mix of its parents with a few small mistakes. Over many generations the mistakes add up, families drift apart, and new species appear.',
     far: 'bg-fog', mid: 'mid-rocks', near: 'fg-moss', live: 'tree',
     motes: ['pt-12', 'pt-14', 'pt-17', 'pt-5'],
@@ -110,8 +110,13 @@ export function buildScene(n, { perWord, go, touch }) {
   const plateIn = el('div', 'in-plate-in');
   const num = el('p', 'in-num');
   num.innerHTML = `<span class="sr-only">Part </span>${n + 1}<span class="in-num-of"> of 5</span>`;
-  const h = el(n === 0 ? 'h1' : 'h2', 'in-title', { id: `in-t${n + 1}` });
-  h.textContent = def.title;
+  const h = el(n === 0 ? 'h1' : 'h2', 'in-title', { id: `in-t${n + 1}`, tabindex: '-1' });
+  // authored line breaks (never more than two) so the plate hugs its words like a specimen label
+  for (const line of def.lines || [def.title]) {
+    const l = el('span', 'in-title-line');
+    l.textContent = line;
+    h.append(l, ' ');
+  }
   plateIn.append(num, h);
   plateMask.append(plateIn);
   const body = el('p', 'in-body');
@@ -135,7 +140,7 @@ export function buildScene(n, { perWord, go, touch }) {
 
   const copyPlane = { el: copy, mod: { o: 1 }, lastO: '' };
   return {
-    n, def, root, planes, copy: copyPlane, motes,
+    n, def, root, planes, copy: copyPlane, motes, heading: h,
     host: planes.pivot.el,
     ready: Promise.all(ready),
     rootMod: { x: 0, y: 0, s: 1, o: 1, card: 0 },

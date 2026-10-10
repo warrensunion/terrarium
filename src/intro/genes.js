@@ -12,10 +12,10 @@ import { loadSpecies, createCreature } from './creature.js';
 /** bead centres in gene-strand.webp (1536 x 260), measured from its alpha */
 const BEADS = [[97, 91], [221, 67], [350, 101], [468, 156], [586, 193], [711, 189], [826, 146], [946, 106], [1071, 83], [1197, 87], [1317, 125], [1442, 161]];
 const GENES = [
-  { key: 'segments', name: 'segments', presets: [2, 4, 7], show: (v) => `${Math.round(v)} segments` },
-  { key: 'legs', name: 'leg length', presets: [0.7, 1.1, 1.6], show: (v) => `legs ${v.toFixed(1)}×` },
-  { key: 'size', name: 'size', presets: [0.8, 1.0, 1.3], show: (v) => `size ${v.toFixed(1)}×` },
-  { key: 'hue', name: 'colour', presets: [0, 70, 200], show: (v) => `colour ${v >= 0 ? '+' : ''}${Math.round(v)}°` },
+  { key: 'segments', name: 'segments', label: 'segments', presets: [2, 4, 7], show: (v) => String(Math.round(v)) },
+  { key: 'legs', name: 'leg length', label: 'legs', presets: [0.7, 1.1, 1.6], show: (v) => `${v.toFixed(1)}×` },
+  { key: 'size', name: 'size', label: 'size', presets: [0.8, 1.0, 1.3], show: (v) => `${v.toFixed(1)}×` },
+  { key: 'hue', name: 'colour', label: 'colour', presets: [0, 72, 204], show: (v) => `${v >= 0 ? '+' : ''}${Math.round(v)}°` },
   { key: 'sat', name: 'colour strength', presets: [0.55, 1, 1.45], show: (v) => `strength ${v.toFixed(1)}` },
   { key: 'contrast', name: 'markings', presets: [0.85, 1, 1.3], show: (v) => `markings ${v.toFixed(1)}` },
 ];
@@ -54,8 +54,22 @@ export function createGenes(host, { reduced }) {
   canvas.className = 'in-canvas in-genes-canvas';
   canvas.setAttribute('role', 'img');
   canvas.setAttribute('aria-label', 'A violet creature whose body changes as its genes change');
-  const readout = document.createElement('p');
+  // four small labelled values, one chip per gene the scroll walks through
+  const readout = document.createElement('ul');
   readout.className = 'in-readout';
+  readout.setAttribute('aria-label', 'Gene values');
+  const chips = GENES.slice(0, 4).map((g) => {
+    const li = document.createElement('li');
+    li.className = 'in-chip';
+    const k = document.createElement('span');
+    k.className = 'in-chip-k';
+    k.textContent = g.label;
+    const v = document.createElement('b');
+    v.className = 'in-chip-v';
+    li.append(k, v);
+    readout.append(li);
+    return { v, last: '' };
+  });
   host.append(strand, canvas, readout);
   const ctx = canvas.getContext('2d');
 
@@ -65,7 +79,7 @@ export function createGenes(host, { reduced }) {
   const shown = { ...genesAt(0) };
   const override = {};
   let overrideP = null, lastP = 0, presetIx = [1, 1, 1, 0, 1, 1];
-  let hoverAt = 0, W = 0, H = 0, dpr = 1, walk = 0, active = -1, lastText = '';
+  let hoverAt = 0, W = 0, H = 0, dpr = 1, walk = 0, active = -1;
 
   const bump = (gi) => {
     presetIx[gi] = (presetIx[gi] + 1) % 3;
@@ -89,7 +103,8 @@ export function createGenes(host, { reduced }) {
 
   return {
     ready,
-    warm() { creature?.warm(); },
+    // every colour the scroll path passes through (hue 0..120 in 12 deg steps), baked before it is needed
+    warm() { creature?.warm(Array.from({ length: 11 }, (_, i) => i * 12)); },
     resize() {
       dpr = Math.min(devicePixelRatio || 1, 2);
       W = canvas.clientWidth; H = canvas.clientHeight;
@@ -104,8 +119,7 @@ export function createGenes(host, { reduced }) {
       creature.set(shown);
       const a = overrideP === null ? activeAt(p) : active;
       if (a !== active) { active = a; pulse(a); }
-      const text = GENES.slice(0, 4).map((g) => g.show(shown[g.key])).join('  ·  ');
-      if (text !== lastText) { readout.textContent = text; lastText = text; }
+      chips.forEach((c, i) => { const t = GENES[i].show(shown[GENES[i].key]); if (t !== c.last) { c.v.textContent = t; c.last = t; } });
 
       walk += dt * (reduced ? 0 : 3.2);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

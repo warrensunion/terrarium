@@ -44,7 +44,11 @@ function start() {
   try { sessionStorage.setItem(KEY, '1'); } catch { /* private mode */ }
 
   // the intro chunk counts: it is the biggest single wait on a cold load
-  const chunk = import('./screen.js').catch((e) => console.error(e));
+  const chunk = import('./screen.js').catch((e) => {
+    // without the intro there is nothing to reveal: never leave a permanent curtain
+    console.error(e);
+    dismiss();
+  });
   const fonts = document.fonts
     ? Promise.all([document.fonts.load('400 1em "IM Fell English"'), document.fonts.load('400 1em "Hanken Grotesk"')]).catch(() => {})
     : Promise.resolve();
@@ -56,6 +60,13 @@ function start() {
   ]);
 
   const trace = root.querySelector('.pl-trace');
+  const halo = root.querySelector('.pl-halo');
+  const tip = root.querySelector('.pl-tip');
+  const stem = root.querySelector('.pl-stem');
+  // where the climbing tip is: the path's point at the traced length, mapped to screen px (measured once)
+  const len = trace.getTotalLength();
+  const box = stem.getBoundingClientRect();
+  const sx = box.width / 40, sy = box.height / 300;
   const num = root.querySelector('.pl-num');
   const t0 = performance.now();
   let last = t0, doneAt = 0;
@@ -69,7 +80,9 @@ function start() {
       const cap = reduced ? 1 : clamp((t - GUIDE_AT) / MIN_TRACE, 0, 1);
       const goal = Math.min(real, cap);
       shown = goal >= 1 && shown > 0.995 ? 1 : damp(shown, goal, 9, dt);
-      trace.style.strokeDashoffset = String(1 - shown);
+      trace.style.strokeDashoffset = halo.style.strokeDashoffset = String(1 - shown);
+      const pt = trace.getPointAtLength(len * shown);
+      tip.style.transform = `translate3d(${(box.left + pt.x * sx).toFixed(1)}px,${(box.top + pt.y * sy).toFixed(1)}px,0)`;
       const pct = Math.round(shown * 100);
       root.setAttribute('aria-valuenow', String(pct));
       if (num) num.textContent = pct + '%';

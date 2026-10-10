@@ -9,7 +9,7 @@
   position: fixed; inset: 0; overflow: hidden; z-index: 1;
   background: var(--fog) url('/art/paper-grain.webp') 0 0 / 512px;
   color: var(--moss);
-  touch-action: none; -webkit-user-select: none; user-select: none;
+  touch-action: pinch-zoom; -webkit-user-select: none; user-select: none;
 }
 
 /* ---- scenes and planes ---------------------------------------------------- */
@@ -42,18 +42,21 @@
   background: url('/art/paper-grain.webp') 0 0 / 512px; }
 
 /* ---- copy: chapter number, title plate, body, prompt ----------------------- */
-.in-copy { position: absolute; left: 0; top: 22vh; z-index: 2; width: min(780px, 48vw); pointer-events: none; }
+.in-copy { position: absolute; left: 0; top: 22vh; z-index: 2; width: min(1000px, 56vw); pointer-events: none; }
 .in-copy a, .in-copy button { pointer-events: auto; }
 .in-plate { display: inline-block; overflow: hidden; max-width: 100%; }
 .in-plate-in {
-  padding: 18px 44px 24px 7vw;
+  padding: 16px 40px 20px 7vw;
   background: #D9E4DE url('/art/paper-grain.webp') 0 0 / 512px;
   border: 1px solid rgba(31, 58, 51, .3); border-left: 0;
   box-shadow: 0 18px 40px -26px rgba(20, 36, 31, .45);
 }
 .in-num { margin: 0 0 6px; font: 500 13px/1 var(--font-text); font-variant-numeric: tabular-nums; color: rgba(31, 58, 51, .72); }
-.in-title { margin: 0; font: 400 min(var(--t-6), 10.4vh)/0.98 var(--font-display); letter-spacing: -0.01em; color: var(--moss); max-width: 8.4em; text-wrap: balance; }
-.in-s1 .in-title { font-size: min(clamp(56px, 8.4vw, 124px), 13vh); }
+/* two lines at most, ~5% cap height (makemepulse's 410x140 strip at 1440), still ~4x the 17 px body */
+.in-title { margin: 0; font: 400 min(clamp(44px, 4.9vw, 96px), 8vh)/1 var(--font-display); letter-spacing: -0.005em; color: var(--moss); }
+.in-title-line { display: block; white-space: nowrap; }
+.in-title:focus { outline: none; }
+.in-s1 .in-title { font-size: min(clamp(56px, 7.4vw, 124px), 12vh); }
 .in-body { margin: 26px 0 0 7vw; padding: 15px 22px 17px; max-width: calc(34ch + 46px); font: 400 var(--t-0)/27px var(--font-text); color: var(--moss);
   background: rgba(217, 228, 222, .9) url('/art/paper-grain.webp') 0 0 / 512px; border: 1px solid rgba(31, 58, 51, .3); }
 .in-word { display: inline-block; white-space: nowrap; }
@@ -127,16 +130,19 @@
 .in-bead:hover { transform: scale(.9); }
 .in-bead.is-on { box-shadow: 0 0 0 2px rgba(255, 244, 214, .9), 0 0 22px 6px rgba(95, 227, 216, .45); }
 .in-genes-canvas { flex: 1; min-height: 0; }
-.in-readout { margin: 6px 0 0; font: 500 13px/1.4 var(--font-text); font-variant-numeric: tabular-nums; color: var(--moss);
-  padding: 5px 12px; border-radius: 999px; background: rgba(218, 229, 223, .78); white-space: nowrap; }
+.in-readout { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.in-chip { display: flex; flex-direction: column; align-items: center; min-width: 74px; padding: 5px 10px 6px; border-radius: 6px;
+  background: rgba(218, 229, 223, .86); border: 1px solid rgba(31, 58, 51, .22); color: var(--moss); }
+.in-chip-k { font: 500 11px/1.2 var(--font-text); color: rgba(31, 58, 51, .7); }
+.in-chip-v { font: 600 14px/1.3 var(--font-text); font-variant-numeric: tabular-nums; }
 
 /* ---- scene 3: brains ---------------------------------------------------------- */
 .in-s3 .in-far .in-art { object-position: 60% 0%; filter: saturate(.85) brightness(1.06); }
 .in-s3 .in-mid { left: 40vw; width: 66vw; bottom: -9vh; }
-.in-s3 .in-pivot { right: 3vw; top: 9vh; width: 54vw; height: 82vh; }
+.in-s3 .in-pivot { right: 9vw; top: 9vh; width: 50vw; height: 82vh; } /* the brain card ends clear of the frame leaves */
 .in-s3 .in-near { left: -8vw; width: 116vw; bottom: -36vw; }
 .in-s3 .in-close-l { left: -22vh; top: 58vh; height: 100vh; aspect-ratio: 733 / 1536; }
-.in-s3 .in-close-r { right: -22vh; top: -40vh; height: 100vh; aspect-ratio: 652 / 1536; }
+.in-s3 .in-close-r { right: -27vh; top: -40vh; height: 100vh; aspect-ratio: 652 / 1536; }
 
 /* ---- scene 4: species ----------------------------------------------------------- */
 .in-s4 .in-far .in-art { object-position: 40% 80%; }
@@ -177,7 +183,8 @@
   .in-near { bottom: auto !important; top: 40vh; left: -30vw !important; width: 160vw !important; }
   .in-close-l { top: 30vh !important; height: 60vh !important; }
   .in-close-r { top: -12vh !important; height: 52vh !important; }
-  .in-readout { font-size: 12px; }
+  .in-chip { min-width: 0; padding: 3px 8px 4px; }
+  .in-chip-v { font-size: 13px; }
 }
 
 /* ---- reduced motion: nothing moves, scenes cross-fade --------------------------- */

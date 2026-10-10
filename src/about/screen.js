@@ -7,6 +7,7 @@
  */
 import './about.css';
 import { url } from '../intro/assets.js';
+import { prefersReducedMotion } from '../core/env.js';
 
 const SECTIONS = [
   ['What you are looking at', [
@@ -52,7 +53,7 @@ export default function aboutScreen(root, { go }) {
       <a class="ab-open" href="#/live">Open the jar</a>
     </nav>
     <img class="ab-jar" src="${url('jar-world')}" alt="The jar, with moss, ferns, a small pool and creatures inside" width="834" height="1385" decoding="async">
-    <h1 class="ab-title">How it works</h1>
+    <h1 class="ab-title" tabindex="-1">How it works</h1>
     <p class="ab-lede">A plain account of what happens inside the jar.</p>`;
   const img = head.querySelector('.ab-jar');
   img.addEventListener('error', () => img.remove(), { once: true });
@@ -72,13 +73,15 @@ export default function aboutScreen(root, { go }) {
   page.append(foot);
   root.append(page);
   document.documentElement.classList.add('ab-on');
+  // reduced motion comes from env.js (it also honours ?motion=reduce), never a raw media query
+  document.documentElement.classList.toggle('ab-reduced', prefersReducedMotion());
   scrollTo(0, 0);
-  page.querySelector('.ab-title').focus?.({ preventScroll: true });
+  page.querySelector('.ab-title').focus({ preventScroll: true });
   void go;
   return {
     destroy() {
       page.remove();
-      document.documentElement.classList.remove('ab-on');
+      document.documentElement.classList.remove('ab-on', 'ab-reduced');
     },
   };
 }
