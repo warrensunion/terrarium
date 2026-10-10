@@ -76,6 +76,9 @@ export function createGrade(renderer) {
 
   return {
     uniforms: mat.uniforms,
+    target: rt,
+    /** compile the grade program ahead of the first frame */
+    compileAsync() { return renderer.compileAsync(post, ortho); },
     setSize(w, h) { rt.setSize(w, h); mat.uniforms.uRes.value.set(w, h); },
     render(scene, camera, time) {
       mat.uniforms.uTime.value = time;

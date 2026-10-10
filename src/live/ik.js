@@ -73,8 +73,39 @@ export const GAIT = {
   LX: 0, LZ: 1, LFX: 2, LFZ: 3, LTX: 4, LTZ: 5, LT: 6,
   RX: 7, RZ: 8, RFX: 9, RFZ: 10, RTX: 11, RTZ: 12, RT: 13,
   LAST: 14, // side that stepped last: 0 left, 1 right, −1 none
-  SIZE: 15,
+  LF: 15, RF: 16, // 1 = the IK could not reach this planted foot last frame: step it now
+  SIZE: 17,
 };
+
+/**
+ * Where a creature's legs attach and how long they are, for body radius r and
+ * leg length L (three units). One place, so the renderer and the tests use
+ * the same geometry. Bones total 1.65 L and the hips sit low on the body's
+ * side, so a foot lagging the full step threshold (0.9 L) plus one step of
+ * travel is still in reach; anything beyond that is caught by stepFeet.
+ */
+export function legLayout(r, L, out = {}) {
+  out.latR = 0.7 * r;              // hip, out from the body axis
+  out.latF = 0.7 * r + 0.35 * L;   // rest foot, out from the body axis
+  out.lead = 0.15 * L;             // front legs rest this far forward, rear legs back
+  out.bodyY = Math.min(0.8 * r, 0.6 * L);
+  out.hipDrop = 0.35 * r;          // hips hang below the body centre
+  out.l1 = 0.825 * L; out.l2 = 0.825 * L;
+  out.threshold = 0.9 * L;         // brief: feet step when > 0.9·legLength from rest
+  return out;
+}
+
+/** step time: quick at speed so feet keep up, never slower than 0.16 s */
+export function stepDuration(L, speed) {
+  const d = (0.3 * L) / (speed + 1e-6);
+  return d < 0.04 ? 0.04 : d > 0.16 ? 0.16 : d;
+}
+
+/** how far (ground plane) a foot may be from a hip at height h and still be reached, with margin */
+export function horizontalReach(l1, l2, h) {
+  const R = 0.97 * (l1 + l2);
+  return Math.sqrt(Math.max(0, R * R - h * h));
+}
 
 /** n pairs, all feet planted; neighbouring pairs start on opposite sides so the gait ripples */
 export function createGait(n) {
@@ -87,9 +118,11 @@ export function resetPair(g, o, lx, lz, rx, rz, last = -1) {
   g[o + GAIT.LX] = lx; g[o + GAIT.LZ] = lz; g[o + GAIT.LT] = -1;
   g[o + GAIT.RX] = rx; g[o + GAIT.RZ] = rz; g[o + GAIT.RT] = -1;
   g[o + GAIT.LAST] = last;
+  g[o + GAIT.LF] = 0; g[o + GAIT.RF] = 0;
 }
 
 const ease = (t) => t * t * (3 - 2 * t);
+const dist2 = (x, z) => x * x + z * z;
 
 // advance one foot already in the air; returns true when it lands
 function advance(g, o, X, FX, TX, T, dt, dur) {
@@ -119,8 +152,14 @@ function lift(g, o, X, FX, TX, T, rx, rz, overshoot) {
  * behind its rest spot, never while its partner is in the air, and the pair
  * alternates sides. A foot more than 6× threshold behind (16x sim speed,
  * a teleport) snaps to its rest spot instead of skating.
+ *
+ * Planted feet never leave reach: given the hips (hlx, hlz, hrx, hrz) and the
+ * horizontal reach, a planted foot farther than reach from its hip, or one
+ * flagged LF/RF by the IK, steps at once, or snaps to its rest spot if its
+ * partner is in the air.
  */
-export function stepFeet(g, o, rlx, rlz, rrx, rrz, threshold, dt, duration, overshoot = 0.3) {
+export function stepFeet(g, o, rlx, rlz, rrx, rrz, threshold, dt, duration, overshoot = 0.3,
+  hlx = 0, hlz = 0, hrx = 0, hrz = 0, reach = Infinity) {
   const S = GAIT;
   if (g[o + S.LT] >= 0 && advance(g, o, S.LX, S.LFX, S.LTX, S.LT, dt, duration)) g[o + S.LAST] = 0;
   if (g[o + S.RT] >= 0 && advance(g, o, S.RX, S.RFX, S.RTX, S.RT, dt, duration)) g[o + S.LAST] = 1;
@@ -131,7 +170,25 @@ export function stepFeet(g, o, rlx, rlz, rrx, rrz, threshold, dt, duration, over
   const far = threshold * 6;
   if (lagL > far) { g[o + S.LX] = rlx; g[o + S.LZ] = rlz; g[o + S.LT] = -1; }
   if (lagR > far) { g[o + S.RX] = rrx; g[o + S.RZ] = rrz; g[o + S.RT] = -1; }
-  if (lagL > far || lagR > far) return;
+  // (no early return: the partner of a snapped foot still gets the reach check below)
+
+  // out of reach (or flagged by the IK): step now, or snap if the partner is up
+  let outL = g[o + S.LT] < 0 && (g[o + S.LF] > 0 || dist2(g[o + S.LX] - hlx, g[o + S.LZ] - hlz) > reach * reach);
+  let outR = g[o + S.RT] < 0 && (g[o + S.RF] > 0 || dist2(g[o + S.RX] - hrx, g[o + S.RZ] - hrz) > reach * reach);
+  g[o + S.LF] = 0; g[o + S.RF] = 0;
+  if (outL || outR) {
+    const upL = g[o + S.LT] >= 0, upR = g[o + S.RT] >= 0;
+    if (outL && outR) {
+      // lift the worse one, put the other straight down on its rest spot
+      if (lagL >= lagR) { lift(g, o, S.LX, S.LFX, S.LTX, S.LT, rlx, rlz, overshoot); g[o + S.RX] = rrx; g[o + S.RZ] = rrz; }
+      else { lift(g, o, S.RX, S.RFX, S.RTX, S.RT, rrx, rrz, overshoot); g[o + S.LX] = rlx; g[o + S.LZ] = rlz; }
+    } else if (outL) {
+      if (upR) { g[o + S.LX] = rlx; g[o + S.LZ] = rlz; } else lift(g, o, S.LX, S.LFX, S.LTX, S.LT, rlx, rlz, overshoot);
+    } else {
+      if (upL) { g[o + S.RX] = rrx; g[o + S.RZ] = rrz; } else lift(g, o, S.RX, S.RFX, S.RTX, S.RT, rrx, rrz, overshoot);
+    }
+    return;
+  }
 
   if (g[o + S.LT] >= 0 || g[o + S.RT] >= 0) return; // one foot is up: the other waits
   const wantL = lagL > threshold, wantR = lagR > threshold;

@@ -116,3 +116,54 @@ test('stepFeet snaps a foot that is hopelessly far behind (16x speed)', () => {
   assert.equal(g[GAIT.LZ], 50);
   assert.equal(g[GAIT.RZ], 50);
 });
+
+// --- fix round 1: feet must never skate --------------------------------
+import { legLayout, stepDuration, horizontalReach } from '../src/live/ik.js';
+
+test('a planted foot never stretches off its spot, at any leg length, speed or turn (worst case)', () => {
+  const r = 1;
+  for (const legLength of [0.6, 1.0, 1.4, 1.8]) {
+    const L = legLength * r;
+    const g = legLayout(r, L);
+    for (const speedL of [0.3, 1, 3, 8, 25, 80, 300]) { // leg lengths per second; 16x sim speed reaches ~270
+      for (const turn of [0, 1.5, -3]) for (const leadSign of [1, -1]) { // straight/curving/spinning × front/rear segment
+        const gait = createGait(1);
+        let x = 0, z = 0, h = 0.3, bobT = 0;
+        const reset = () => {
+          const fx = Math.cos(h), fz = Math.sin(h);
+          gait[GAIT.LX] = x - fz * g.latF; gait[GAIT.LZ] = z + fx * g.latF;
+          gait[GAIT.RX] = x + fz * g.latF; gait[GAIT.RZ] = z - fx * g.latF;
+        };
+        reset();
+        for (let f = 0; f < 600; f++) {
+          const dt = 1 / 60, v = speedL * L;
+          h += turn * dt; x += Math.cos(h) * v * dt; z += Math.sin(h) * v * dt; bobT += v * dt;
+          const fx = Math.cos(h), fz = Math.sin(h);
+          const bob = 0.15 * r * Math.abs(Math.sin(bobT / L * Math.PI));
+          const hipH = g.bodyY - g.hipDrop + bob;          // hip height above the (flat) ground
+          { const lead = g.lead * leadSign;
+            const reach = horizontalReach(g.l1, g.l2, hipH);
+            const hlx = x - fz * g.latR, hlz = z + fx * g.latR, hrx = x + fz * g.latR, hrz = z - fx * g.latR;
+            stepFeet(gait, 0,
+              x - fz * g.latF + fx * lead, z + fx * g.latF + fz * lead,
+              x + fz * g.latF + fx * lead, z - fx * g.latF + fz * lead,
+              g.threshold, dt, stepDuration(L, v), 0.3, hlx, hlz, hrx, hrz, reach);
+            for (const [X, T, hx, hz] of [[GAIT.LX, GAIT.LT, hlx, hlz], [GAIT.RX, GAIT.RT, hrx, hrz]]) {
+              if (gait[T] >= 0) continue; // in the air: allowed to trail
+              const res = solveTwoBone({ x: hx, y: hipH, z: hz }, { x: gait[X], y: 0, z: gait[X + 1] }, g.l1, g.l2, { x: hx, y: 5, z: hz });
+              assert.ok(res.reached, `L=${legLength} v=${speedL} turn=${turn} f=${f}: planted foot out of reach`);
+            }
+          }
+        }
+      }
+    }
+  }
+});
+
+test('stepFeet lifts a planted foot that the IK flagged as unreachable', () => {
+  const g = pair();
+  g[GAIT.LF] = 1; // the solve said "not reached" last frame
+  stepFeet(g, 0, -1, 0.1, 1, 0, 0.5, 1 / 60, 0.1);
+  assert.ok(g[GAIT.LT] >= 0, 'flagged foot lifted even though it lags less than the threshold');
+  assert.equal(g[GAIT.LF], 0, 'flag cleared');
+});

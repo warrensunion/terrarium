@@ -180,7 +180,9 @@ canvas.addEventListener('pointerup', (e) => {
 addEventListener('keydown', (e) => { if (e.key === 'Escape') unfollow(); });
 
 // timing: CPU ms for update + render submission, and the full frame interval
-const stats = { cpu: 0, frame: 0, frames: 0, cpuMax: 0 };
+const stats = { cpu: 0, frame: 0, frames: 0, cpuMax: 0, unreached: 0, planted: 0 };
+// the first 5 s after stage.ready, kept apart: that is where start-up jank would show
+const early = { readyAt: 0, intervals: [], works: [], renders: [] };
 const syncGPU = param('sync') === '1';
 const gl = stage.renderer.getContext();
 const px = new Uint8Array(4);
@@ -198,25 +200,30 @@ function loop(now) {
   }
   if (made === 2) acc = Math.min(acc, DT);
   if (made) stage.setFrames(prev, next);
+  const tR = performance.now();
   stage.render(dt, acc / DT);
+  const renderMs = performance.now() - tR;
   if (followId != null && !stage.creatures.positionOf(followId)) unfollow();
   if (syncGPU) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
   const cpu = performance.now() - t0;
   const k = 0.05;
   stats.cpu += (cpu - stats.cpu) * k; stats.frame += (dt * 1000 - stats.frame) * k; stats.frames++;
   if (stats.frames > 30) stats.cpuMax = Math.max(stats.cpuMax, cpu);
+  stats.unreached += stage.creatures.debug.unreached; stats.planted += stage.creatures.debug.planted;
+  if (early.readyAt && now - early.readyAt < 5000) { early.intervals.push(dt * 1000); early.works.push(cpu); early.renders.push(renderMs); }
   if (now - shown > 250) {
     shown = now;
-    readout.textContent = `${stats.cpu.toFixed(2)} ms work · ${stats.frame.toFixed(1)} ms/frame · ${world.population} creatures`;
+    readout.textContent = `${stats.cpu.toFixed(2)} ms work · ${stats.frame.toFixed(1)} ms/frame · ${world.population} creatures · ${(100 * stats.unreached / Math.max(1, stats.planted)).toFixed(3)}% feet out of reach`;
   }
   requestAnimationFrame(loop);
 }
-requestAnimationFrame(loop);
+// like the live screen: start drawing only once the stage is warmed up
+stage.ready.then(() => { early.readyAt = performance.now(); last = early.readyAt; requestAnimationFrame(loop); });
 
 // for the headless measuring script
-window.__lv = { stage, stats, follow, unfollow, setSpeed, world };
-if (param('follow')) setTimeout(() => {
+window.__lv = { stage, stats, early, follow, unfollow, setSpeed, world };
+if (param('follow')) stage.ready.then(() => setTimeout(() => {
   // follow the creature nearest the middle of the screen
   const id = stage.pick(innerWidth / 2, innerHeight * 0.55) ?? next.creatures[0];
   follow(id);
-}, 600);
+}, 800));
