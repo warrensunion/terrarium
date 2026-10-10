@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as E from '../src/core/ease.js';
 
-const curves = ['p2in', 'p2out', 'p2inOut', 'p3in', 'p3out', 'p3inOut', 'p4in', 'p4out', 'p4inOut'];
+const curves = ['p1in', 'p1out', 'p1inOut', 'expoOut', 'smooth', 'p2in', 'p2out', 'p2inOut', 'p3in', 'p3out', 'p3inOut', 'p4in', 'p4out', 'p4inOut'];
 
 test('power eases start at 0 and end at 1', () => {
   for (const k of curves) {
@@ -30,4 +30,16 @@ test('clamp and lerp', () => {
   assert.equal(E.clamp(5, 0, 1), 1);
   assert.equal(E.clamp(-5, 0, 1), 0);
   assert.equal(E.lerp(2, 4, 0.5), 3);
+});
+
+test('expoOut is fast early and lands exactly', () => {
+  assert.ok(E.expoOut(0.28) > 0.8);
+  assert.equal(E.expoOut(1), 1);
+});
+
+test('seg maps a window of a timeline onto an ease', () => {
+  assert.equal(E.seg(0.1, 0.4, 1), 0);
+  assert.equal(E.seg(2, 0.4, 1), 1);
+  assert.ok(Math.abs(E.seg(0.9, 0.4, 1) - 0.5) < 1e-12);
+  assert.ok(Math.abs(E.seg(0.9, 0.4, 1, E.p2inOut) - 0.5) < 1e-12);
 });
