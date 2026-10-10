@@ -42,7 +42,7 @@ const BASE = `http://localhost:${PORT}`;
 
 const vite = await createServer({ root: ROOT, cacheDir: join(tmpdir(), 'vite-terrarium-shoot'), logLevel: 'error', server: { port: PORT, strictPort: true, hmr: false, watch: { ignored: ['**/*'] } } });
 await vite.listen();
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=default', '--ignore-gpu-blocklist', '--enable-unsafe-webgpu'] });
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=default', '--ignore-gpu-blocklist', '--enable-unsafe-webgpu', '--disable-dawn-features=use_dxc'] }); // Playwright's Chromium ships without dxil.dll; real Chrome does not need this
 const failures = [];
 const report = {};
 try { for (const k of WHICH) await shootAt(k); } finally { await browser.close(); await vite.close(); }
