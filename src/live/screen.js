@@ -247,7 +247,12 @@ export default function liveScreen(root) {
     if (id != null) inspect(id);
   }
   function onResize() { stage?.resize(); }
-  function onVisibility() { if (document.visibilityState === 'visible') last = performance.now(); }
+  function onVisibility() {
+    if (document.visibilityState !== 'visible') return;
+    last = performance.now();
+    // back from a background tab before the first frame: give the worker a full window again
+    if (!next && !failed && !destroyed && watchdog) { clearTimeout(watchdog); armWatchdog(); }
+  }
 
   if (import.meta.env.DEV) {
     // test hooks for scripts/shoot.mjs

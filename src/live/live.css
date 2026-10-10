@@ -39,11 +39,17 @@
   max-width: min(420px, calc(100vw - 32px)); padding: 18px 22px; border-radius: 14px;
   background: var(--moss); color: var(--fog); font-size: 15px;
 }
+/* phones: the HUD owns the top pill and the bottom console, so the site row
+   sits just under the pill; only the reduced-motion "paused" cue survives
+   from the hint, under that row */
 @media (max-width: 699px) {
-  .lv-top { top: auto; bottom: calc(env(safe-area-inset-bottom) + 12px); gap: 16px; }
+  .lv-top { top: calc(env(safe-area-inset-top) + 76px); gap: 16px; }
   .lv-nav { gap: 16px; }
   .lv-mark { font-size: 20px; }
   .lv-hint { display: none; }
+  .lv.is-reduced .lv-hint { display: block; top: calc(env(safe-area-inset-top) + 106px); bottom: auto; font-size: 13px; }
+  /* the open brain sheet folds the HUD into a second top row: give it the room */
+  html[data-ui-brain="open"] .lv-top, html[data-ui-brain="open"] .lv-hint { display: none; }
 }
 .lv.is-reduced::after { transition-duration: 0.4s; } /* class set from env.js */
 
