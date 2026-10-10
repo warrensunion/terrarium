@@ -114,6 +114,10 @@ export function createWorld({ seed = 1, count = 600, params = {}, sensor = sense
     setParams(p) {
       world.params = cleanParams({ ...world.params, ...p });
     },
+    /** Newest id handed out; a reset world starts after it (idBase). */
+    get lastId() {
+      return nextId - 1;
+    },
   };
 
   // founders: a few distinct lineages

@@ -175,3 +175,10 @@ test('params update live and are clamped', () => {
   w.setParams({ foodRate: 9, mutationRate: -1 });
   assert.deepEqual(w.params, { foodRate: 3, mutationRate: 0, temperature: 0.5 });
 });
+
+test('a world started with idBase never reuses an earlier world\'s ids', () => {
+  const a = run(createWorld({ seed: 1, count: 100 }), 50);
+  assert.ok(a.lastId >= Math.max(...a.creatures.map((c) => c.id)));
+  const b = createWorld({ seed: 2, count: 100, idBase: a.lastId });
+  assert.ok(Math.min(...b.creatures.map((c) => c.id)) > a.lastId);
+});
