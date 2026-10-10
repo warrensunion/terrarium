@@ -46,7 +46,7 @@ export default function liveScreen(root) {
   let prev = null, next = null, nextAt = 0, interval = 1000 / 60;
   let inFlight = false, lastStepSent = 0;
   let inspectId = null, panelOpen = false;
-  let stats = null, backend = '', ready = false;
+  let stats = null, backend = '', ready = false, stageReady = false;
   let hues = new Map();
   const alive = new Set();
   let raf = 0, last = performance.now();
@@ -65,6 +65,8 @@ export default function liveScreen(root) {
         inner = fallback(root, 'the 3D scene failed to start: ' + e.message);
         return;
       }
+      // shaders compile and textures upload during warm-up; reveal after it
+      Promise.resolve(stage.ready).then(() => { stageReady = true; });
       hud = createHud(el, {
         speed,
         onSpeed: (n) => { speed = n; },
@@ -121,7 +123,7 @@ export default function liveScreen(root) {
     } else if (m.inspect && m.inspect.id === inspectId) {
       if (!panelOpen) { panel.show(m.inspect); panelOpen = true; } else panel.update(m.inspect);
     }
-    if (!ready) { ready = true; el.classList.add('is-ready'); }
+    if (!ready && stageReady) { ready = true; el.classList.add('is-ready'); }
   }
 
   function loop(t) {
@@ -171,11 +173,13 @@ export default function liveScreen(root) {
       speed(n) { speed = n; hud?.setSpeed(n); },
       inspect,
       kill(id) { worker?.postMessage({ type: 'debug-kill', id }); },
+      // a well-fed adult near the middle, so it lives long enough to be shot
       pickSome() {
-        let best = null, bd = 9;
+        let best = null, bs = -9;
         for (let i = 0; i < next.creatures.length; i += STRIDE) {
-          const d = Math.hypot(next.creatures[i + 1], next.creatures[i + 2]);
-          if (d < bd) { bd = d; best = next.creatures[i]; }
+          const c = next.creatures;
+          const s = c[i + 5] - Math.hypot(c[i + 1], c[i + 2]) - (c[i + 7] > 60 ? 1 : 0);
+          if (s > bs) { bs = s; best = c[i]; }
         }
         return best;
       },
