@@ -37,7 +37,7 @@ export default function liveScreen(root) {
   if (!gl.ok) return fallback(root, gl.reason);
 
   const el = document.createElement('main');
-  el.className = 'lv';
+  el.className = prefersReducedMotion() ? 'lv is-reduced' : 'lv';
   el.innerHTML = `
     <h1 class="sr-only">Terrarium: the live jar</h1>
     <div class="lv-stage"></div>

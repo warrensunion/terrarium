@@ -45,7 +45,7 @@
   .lv-mark { font-size: 20px; }
   .lv-hint { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .lv::after { transition-duration: 0.4s; } }
+.lv.is-reduced::after { transition-duration: 0.4s; } /* class set from env.js */
 
 /* no WebGL */
 .lv-fallback {
