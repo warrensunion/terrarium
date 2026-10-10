@@ -1,0 +1,28 @@
+/* About: a calm reading page on fog paper. One column of 64ch, the same two
+   voices as the intro (IM Fell English for headings, Hanken Grotesk for text),
+   no motion beyond link hovers. */
+
+.ab-on, .ab-on body { background: var(--fog); }
+.ab-page {
+  min-height: 100vh; padding: 0 22px 72px;
+  background: var(--fog) url('/art/paper-grain.webp') 0 0 / 512px;
+  color: var(--moss);
+}
+.ab-head, .ab-sec, .ab-foot { max-width: 64ch; margin: 0 auto; }
+.ab-nav { display: flex; justify-content: space-between; gap: 16px; padding: 22px 0 8px; font: 500 14px/1.4 var(--font-text); }
+.ab-nav a, .ab-foot a { color: var(--moss); text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.ab-nav a:hover, .ab-foot a:hover { text-decoration-thickness: 2px; }
+.ab-jar { display: block; width: auto; height: min(34vh, 300px); margin: 18px auto 8px; filter: drop-shadow(0 18px 24px rgba(20, 36, 31, .22)); }
+.ab-title { margin: 8px 0 6px; font: 400 clamp(44px, 6vw, 72px)/1 var(--font-display); text-align: center; }
+.ab-lede { margin: 0 0 40px; text-align: center; font: 400 var(--t-1)/1.4 var(--font-display); font-style: italic; color: rgba(31, 58, 51, .8); }
+.ab-sec { padding: 26px 0 6px; border-top: 1px solid rgba(31, 58, 51, .22); }
+.ab-sec h2 { margin: 0 0 12px; font: 400 var(--t-2)/1.15 var(--font-display); }
+.ab-sec p { margin: 0 0 16px; font: 400 var(--t-0)/1.62 var(--font-text); max-width: 64ch; }
+.ab-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; padding-top: 32px; border-top: 1px solid rgba(31, 58, 51, .22); font: 500 15px/1.4 var(--font-text); }
+.ab-foot .ab-open, .ab-nav .ab-open { font-weight: 600; }
+.ab-foot .ab-open {
+  padding: 14px 26px; border-radius: 999px; background: var(--moss); color: #EEF3EF; text-decoration: none;
+  transition: transform .4s var(--e-p2-out);
+}
+.ab-foot .ab-open:hover { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { .ab-foot .ab-open { transition: none; } }

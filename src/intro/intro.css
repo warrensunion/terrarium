@@ -34,15 +34,15 @@
 /* ---- overlays ------------------------------------------------------------- */
 .in-shade { position: absolute; inset: 0; z-index: 3; visibility: hidden; pointer-events: none;
   background: radial-gradient(ellipse 80% 70% at 50% 58%, #2E4E3D, #1E382D 62%, #14241F); will-change: opacity; }
-.in-fog { position: absolute; left: 0; right: 0; top: 0; height: 170vh; z-index: 3; visibility: hidden; pointer-events: none;
-  background: linear-gradient(to bottom, var(--fog) 0, var(--fog) 58%, rgba(201, 216, 210, 0) 100%); will-change: transform, opacity; }
+.in-fog { position: absolute; left: 0; right: 0; top: 0; height: 230vh; z-index: 3; visibility: hidden; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(201, 216, 210, 0) 0, var(--fog) 15%, var(--fog) 60%, rgba(201, 216, 210, 0) 100%); will-change: transform, opacity; }
 .in-vignette { position: absolute; inset: 0; z-index: 4; pointer-events: none;
   background: radial-gradient(ellipse 75% 75% at 50% 50%, rgba(20, 36, 31, 0) 62%, rgba(20, 36, 31, .2) 100%); }
 .in-grain { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .05; mix-blend-mode: multiply;
   background: url('/art/paper-grain.webp') 0 0 / 512px; }
 
 /* ---- copy: chapter number, title plate, body, prompt ----------------------- */
-.in-copy { position: absolute; left: 0; top: 22vh; z-index: 2; width: min(640px, 46vw); pointer-events: none; }
+.in-copy { position: absolute; left: 0; top: 22vh; z-index: 2; width: min(780px, 48vw); pointer-events: none; }
 .in-copy a, .in-copy button { pointer-events: auto; }
 .in-plate { display: inline-block; overflow: hidden; max-width: 100%; }
 .in-plate-in {
@@ -171,8 +171,8 @@
   .in-s1 .in-pivot, .in-s5 .in-pivot { left: 20vw; width: 60vw; height: auto; top: 6vh; bottom: auto; }
   .in-s1 .in-mid, .in-s5 .in-mid { left: -40vw; width: 180vw; bottom: auto; top: 38vh; }
   .in-s2 .in-pivot { left: 4vw; right: 4vw; width: auto; top: 7vh; height: 44vh; }
-  .in-s3 .in-pivot { left: 2vw; right: 2vw; width: auto; top: 5vh; height: 50vh; }
-  .in-s4 .in-pivot { left: 3vw; right: 3vw; top: 5vh; height: 44vh; }
+  .in-s3 .in-pivot { left: 2vw; right: 2vw; width: auto; top: 7vh; height: 40vh; }
+  .in-s4 .in-pivot { left: 3vw; right: 3vw; top: 5vh; height: 38vh; }
   .in-s2 .in-mid, .in-s3 .in-mid, .in-s4 .in-mid { left: -50vw; width: 200vw; bottom: auto; top: 30vh; }
   .in-near { bottom: auto !important; top: 40vh; left: -30vw !important; width: 160vw !important; }
   .in-close-l { top: 30vh !important; height: 60vh !important; }

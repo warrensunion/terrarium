@@ -79,6 +79,7 @@ export function createTree(host, { reduced }) {
 
   return {
     ready,
+    warm() { for (const w of walkers) w?.cr.warm(); },
     resize() {
       dpr = Math.min(devicePixelRatio || 1, 2);
       W = canvas.clientWidth; H = canvas.clientHeight;

@@ -60,13 +60,14 @@ export function createBrain(host, { reduced, touch }) {
 
   return {
     ready,
+    warm() { creature?.warm(); },
     resize() {
       dpr = Math.min(devicePixelRatio || 1, 2);
       W = canvas.clientWidth; H = canvas.clientHeight;
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
       const r = canvas.getBoundingClientRect();
       rect = { left: r.left, top: r.top };
-      ground.x0 = W * 0.08; ground.x1 = W * 0.92; ground.y0 = H * 0.7; ground.y1 = H * 0.95;
+      ground.x0 = W * 0.08; ground.x1 = W * 0.92; ground.y0 = H * (W < 560 ? 0.74 : 0.7); ground.y1 = H * 0.95;
       if (!cr.x) { cr.x = W * 0.7; cr.y = H * 0.85; respawn(); seed.tx = seed.x = W * 0.25; }
     },
     /** client coords from the stage's pointer listener */
@@ -142,7 +143,7 @@ export function createBrain(host, { reduced, touch }) {
     // creature: nearer the bottom = nearer the camera = bigger
     if (creature) {
       const depth = (cr.y - ground.y0) / (ground.y1 - ground.y0);
-      const unit = W * 0.045 * (0.85 + 0.3 * depth);
+      const unit = Math.min(W * 0.045, H * 0.05) * (0.85 + 0.3 * depth);
       const g = ctx.createRadialGradient(cr.x, cr.y, 0, cr.x, cr.y, unit * 3);
       g.addColorStop(0, 'rgba(31,58,51,.25)'); g.addColorStop(1, 'rgba(31,58,51,0)');
       ctx.fillStyle = g;
@@ -152,15 +153,16 @@ export function createBrain(host, { reduced, touch }) {
   }
 
   function drawNet() {
-    const top = H * 0.04, bottom = H * 0.5;
-    const xIn = W * 0.30, xH = W * 0.55, xOut = W * 0.78;
+    const narrow = W < 560;
+    const top = H * 0.04, bottom = H * (narrow ? 0.58 : 0.5);
+    const xIn = W * (narrow ? 0.44 : 0.3), xH = W * (narrow ? 0.64 : 0.55), xOut = W * (narrow ? 0.8 : 0.78);
     const yAt = (i, n) => top + ((i + 0.5) / n) * (bottom - top);
     const pIn = IN.map((_, i) => [xIn, yAt(i, 8)]);
     const pH = [0, 1, 2].map((i) => [xH, yAt(i + 2.5, 8)]);
     const pOut = OUT.map((_, i) => [xOut, yAt(i * 1.6 + 1.6, 8)]);
     const { inputs, h, o } = vals;
     // a field-note card behind the diagram, so its labels read over any painting
-    card(ctx, W * 0.03, 0, W * 0.9, bottom + H * 0.035);
+    card(ctx, W * (narrow ? 0.01 : 0.03), 0, W * (narrow ? 0.99 : 0.9), bottom + H * 0.035);
     ctx.lineCap = 'round';
     const edge = (a, b, w, v) => {
       if (!w) return;
@@ -190,7 +192,7 @@ export function createBrain(host, { reduced, touch }) {
     pIn.forEach((p, i) => node(p, inputs[i], r));
     pH.forEach((p, i) => node(p, h[i], r * 1.15));
     pOut.forEach((p, i) => node(p, o[i], r * 1.25));
-    ctx.font = `500 ${Math.max(12, Math.round(W * 0.016))}px "Hanken Grotesk", system-ui, sans-serif`;
+    ctx.font = `500 ${narrow ? 11 : Math.max(12, Math.round(W * 0.016))}px "Hanken Grotesk", system-ui, sans-serif`;
     ctx.fillStyle = 'rgba(31,58,51,.82)';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'right';

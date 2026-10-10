@@ -48,6 +48,24 @@ function bake(img, filter, crop, mirror = false) {
   return c;
 }
 
+/**
+ * Baked sprites shared by every creature with the same species and colour
+ * genes, and swapped for ImageBitmaps as soon as those exist: drawing from a
+ * canvas source can cost a GPU snapshot per call, a bitmap is uploaded once.
+ */
+const SHARED = new Map();
+function remember(key, set) {
+  SHARED.set(key, set);
+  if (SHARED.size > 24) SHARED.delete(SHARED.keys().next().value);
+  if (typeof createImageBitmap !== 'function') return;
+  const swap = (obj, k) => {
+    const c = obj[k];
+    if (c) createImageBitmap(c).then((bm) => { obj[k] = bm; }, () => {});
+  };
+  swap(set, 'head'); swap(set, 'tail');
+  for (const arr of [set.segs, set.legs, set.farLegs]) for (let i = 0; i < arr.length; i++) swap(arr, i);
+}
+
 /** the colour genes as a filter string, quantised so scrubbing does not rebake every frame */
 export function geneFilter(g, extra = '') {
   const h = Math.round(g.hue / 4) * 4;
@@ -66,6 +84,8 @@ export function createCreature(kit, genes = {}) {
     const key = geneFilter(g);
     if (key === bakedKey && baked) return baked;
     bakedKey = key;
+    const ck = kit.name + '|' + key;
+    if (SHARED.has(ck)) return (baked = SHARED.get(ck));
     const m = spec.flip; // lichen is painted facing right: mirror each part, not the layout
     baked = {
       head: bake(imgs[0], key, spec.head.crop, m),
@@ -74,6 +94,7 @@ export function createCreature(kit, genes = {}) {
       farLegs: [bake(imgs[4], geneFilter(g, 'brightness(0.62)'), null, m), bake(imgs[5], geneFilter(g, 'brightness(0.62)'), null, m)],
       tail: bake(imgs[6], key, null, m),
     };
+    remember(ck, baked);
     return baked;
   }
 
@@ -105,6 +126,8 @@ export function createCreature(kit, genes = {}) {
   return {
     genes: g,
     set(next) { Object.assign(g, next); },
+    /** bake the sprites now (idle time) instead of on the first frame a scene shows */
+    warm() { sprites(); },
     get length() { return layout(sprites()).length * this.scaleOf(1); },
     scaleOf(u) { return u * (0.75 + 0.5 * (g.size - 0.8)); },
     /** turn smoothly: the body squashes through its own width, like turning round */

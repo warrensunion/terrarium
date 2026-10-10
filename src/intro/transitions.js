@@ -13,6 +13,8 @@
 import { seg, p1inOut, p2in, p2out, p2inOut, p3in, p3out, p3inOut, p4out, lerp } from '../core/ease.js';
 
 const ROLES = ['far', 'mid', 'pivot', 'fx', 'near', 'closeL', 'closeR'];
+/** the fog sheet (intro.css .in-fog, 230vh, soft at both ends): y offsets in viewport heights */
+const FOG_COVER = -0.345, FOG_ABOVE = -2.3, FOG_BELOW = 1.05;
 
 /** how far each plane travels in a vertical camera move, in viewport heights */
 const DEPTH_TRAVEL = { far: 0.22, mid: 0.42, pivot: 0.6, fx: 0.75, near: 0.95, closeL: 1.25, closeR: 1.25 };
@@ -54,7 +56,7 @@ const fogTilt = {
     if (!cut) each(A, (m, r) => { m.y = up * H * DEPTH_TRAVEL[r]; });
     else each(B, (m, r) => { m.y = (1 - rise) * H * DEPTH_TRAVEL[r] * 0.7; });
     // fog sheet: comes down from above, covers, then thins out downward
-    ui.fog.y = cut ? rise * H * 0.5 : lerp(-1.7, 0, up) * H;
+    ui.fog.y = (cut ? lerp(FOG_COVER, 0.35, rise) : lerp(FOG_ABOVE, FOG_COVER, up)) * H;
     ui.fog.o = cut ? 1 - seg(t, 1.0, 1.0, p2inOut) : 1;
     A.copy.o = 1 - seg(t, 0, 0.35, p2out);
     return { a: !cut, b: cut };
@@ -75,7 +77,7 @@ const descent = {
     });
     // a veil of fog passing upward as the camera sinks through it
     const veil = seg(t, 0, 1.4);
-    ui.fog.y = lerp(1.1, -1.8, veil) * H;
+    ui.fog.y = lerp(FOG_BELOW, FOG_ABOVE, veil) * H;
     ui.fog.o = 0.55 * Math.sin(Math.PI * veil);
     A.copy.o = 1 - seg(t, 0, 0.35, p2out);
     return { a: t < 1.2, b: true };
@@ -125,7 +127,7 @@ export const pushIn = {
       if (r === 'near' || r === 'closeL' || r === 'closeR') m.o = 1 - seg(t, 0.2, 0.6);
     });
     A.copy.o = 1 - seg(t, 0, 0.3, p2out);
-    ui.fog.y = 0;
+    ui.fog.y = FOG_COVER * H;
     ui.fog.o = seg(t, 0.62, 0.58, p2in);
     return { a: true, b: false };
   },

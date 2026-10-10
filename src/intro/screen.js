@@ -12,7 +12,7 @@
  */
 import './intro.css';
 import { prefersReducedMotion, param, log } from '../core/env.js';
-import { clamp, p3inOut } from '../core/ease.js';
+import { clamp, p2out, p3inOut } from '../core/ease.js';
 import { createVirtualScroll } from '../core/scroll.js';
 import { createPointer } from './parallax.js';
 import { SCENES, buildScene } from './scenes.js';
@@ -39,6 +39,8 @@ export default function introScreen(root, { go }) {
   for (const s of scenes) {
     s.view = { planes: s.planes, copy: s.copy.mod, root: s.rootMod };
     s.living = s.def.live ? LIVING[s.def.live](s.host, { reduced, touch }) : null;
+    s.isReady = false;
+    Promise.all([s.ready, s.living?.ready]).then(() => { s.isReady = true; });
     stage.append(s.root);
   }
   const div = (cls) => { const d = document.createElement('div'); d.className = cls; return d; };
@@ -66,7 +68,8 @@ export default function introScreen(root, { go }) {
   skip.className = 'in-skip';
   skip.href = '#/live';
   skip.textContent = 'Skip to the jar';
-  stage.append(shade, fog, vignette, grain, rail, skip, live);
+  stage.prepend(skip); // first in tab order
+  stage.append(shade, fog, vignette, grain, rail, live);
   root.append(stage);
 
   const ui = { shade: { o: 0, last: '' }, fog: { y: 0, o: 0, last: '' } };
@@ -79,8 +82,9 @@ export default function introScreen(root, { go }) {
   let W = innerWidth, H = innerHeight;
   let raf = 0, last = performance.now();
   const t0 = last;
-  let unlockTimer = 0, idleId = 0, resizeTimer = 0;
+  let unlockTimer = 0, idleId = 0, resizeTimer = 0, pendingTo = false;
   const waiters = [];
+  let timeScale = 1; // dev hook: slow transitions down to inspect them
   const pointer = createPointer({ idle: touch });
 
   const scroll = createVirtualScroll(stage, {
@@ -148,6 +152,11 @@ export default function introScreen(root, { go }) {
   function goTo(to) {
     to = clamp(to, 0, 4);
     if (!started || play || to === cur) return;
+    // never show a scene before its art is decoded: wait (input stays held) and go then
+    if (!scenes[to].isReady) {
+      if (!pendingTo) { pendingTo = true; scroll.state.lock(true); Promise.all([scenes[to].ready, scenes[to].living?.ready]).then(() => { pendingTo = false; scenes[to].isReady = true; if (!destroyed) { scroll.state.lock(false); goTo(to); } }); }
+      return;
+    }
     const dir = to > cur ? 1 : -1;
     // forward: the transition that enters `to`; backward: the one that leaves `to`, reversed
     const tr = reduced ? crossFade : TRANSITIONS[dir > 0 ? to - 1 : to];
@@ -218,7 +227,7 @@ export default function introScreen(root, { go }) {
 
   function frame(now) {
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const dt = Math.min(0.05, (now - last) / 1000) * timeScale;
     last = now;
     const t = (now - t0) / 1000;
     const st = scroll.state;
@@ -241,6 +250,9 @@ export default function introScreen(root, { go }) {
       play.t += dt * play.dir;
       const tt = clamp(play.t, 0, play.tr.dur);
       const vis = play.tr.run(tt, A.view, B.view, ui, { W, H, jar: play.jar });
+      // the departing scene's words leave first (0.35 s), whichever way we travel
+      const leaving = play.dir > 0 ? A : B;
+      if (leaving.copy) leaving.copy.mod.o = 1 - p2out(clamp((play.dir > 0 ? tt : play.tr.dur - tt) / 0.35, 0, 1));
       show(A, vis.a);
       if (B.root) show(B, vis.b);
       if (vis.a) visible.push(A);
@@ -290,7 +302,21 @@ export default function introScreen(root, { go }) {
     started = true;
     settle();
     // decode the other scenes' art while people read the first
-    Promise.all(scenes.map((sc) => Promise.all([sc.ready, sc.living?.ready]))).then(() => { if (!destroyed) measureAll(); });
+    Promise.all(scenes.map((sc) => Promise.all([sc.ready, sc.living?.ready]))).then(() => {
+      if (destroyed) return;
+      measureAll();
+      // bake every creature's sprites in idle time, one scene per idle slot
+      const ric = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
+      const queue = scenes.filter((sc) => sc.living?.warm);
+      const next = () => {
+        const sc = queue.shift();
+        if (!sc || destroyed) return;
+        sc.living.warm();
+        sc.living.update(0, 0, 0); // first draw: the 2D canvas allocates its GPU surface now, not mid-transition
+        ric(next, { timeout: 2000 });
+      };
+      ric(next, { timeout: 2000 });
+    });
   })();
 
   if (import.meta.env.DEV) {
@@ -309,6 +335,7 @@ export default function introScreen(root, { go }) {
         tryGo();
       }),
       get settled() { return settled; },
+      set timeScale(v) { timeScale = v; },
     };
   }
 

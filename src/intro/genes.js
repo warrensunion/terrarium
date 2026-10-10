@@ -89,6 +89,7 @@ export function createGenes(host, { reduced }) {
 
   return {
     ready,
+    warm() { creature?.warm(); },
     resize() {
       dpr = Math.min(devicePixelRatio || 1, 2);
       W = canvas.clientWidth; H = canvas.clientHeight;
