@@ -219,6 +219,7 @@
   white-space: nowrap;
   transition: background-color 200ms var(--e-p2-out), color 200ms var(--e-p2-out);
 }
+.ui-hud-btn svg { flex: none; }
 .ui-hud-btn:hover { background: rgba(201, 216, 210, 0.08); }
 .ui-hud-btn[aria-expanded="true"] { background: rgba(201, 216, 210, 0.12); color: var(--highlight); }
 .ui-hud-btn--quiet { color: var(--ui-text-2); margin-left: auto; }
@@ -438,7 +439,9 @@ button.ui-brain-chip:hover { background: rgba(107, 79, 160, 0.42); border-color:
   .ui-river { height: 64px; }
   .ui-hud-dock { gap: 2px; }
   .ui-speed-opt { min-width: 40px; height: 36px; }
-  .ui-hud-btn { padding: 0 10px; height: 40px; }
+  /* icon-only buttons on phones: the dock must fit 360 px; the label stays as the accessible name */
+  .ui-hud-btn { position: relative; width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .ui-hud-btn > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 
   /* with the sheet up, the HUD folds to two quiet rows at the top */
   html[data-ui-brain="open"] .ui-hud { justify-content: flex-start; gap: 8px; }
@@ -472,15 +475,13 @@ button.ui-brain-chip:hover { background: rgba(107, 79, 160, 0.42); border-color:
   .ui-brain-canvas { height: 224px; }
 }
 
-/* ------------------------------------------------------------------ reduced motion: fades only */
-@media (prefers-reduced-motion: reduce) {
-  .ui-brain, .ui-brain[data-open="true"] { transform: none; transition: opacity 300ms linear, visibility 0s linear 300ms; }
-  .ui-brain[data-open="true"] { transition: opacity 300ms linear, visibility 0s; }
-  .ui-speed-thumb { transition: none; }
-  .ui-brain-energy-fill { transition: none; }
-  .ui-hud-env, .ui-hud-env[data-open="true"] { transition: opacity 250ms linear, visibility 0s; }
-}
+/* ------------------------------------------------------------------ reduced motion: fades only
+   Driven only by the html.ui-motion-reduce class, which src/ui/motion.js sets
+   from env.js prefersReducedMotion(), so ?motion=reduce|full wins over the OS. */
 html.ui-motion-reduce .ui-brain, html.ui-motion-reduce .ui-brain[data-open="true"] { transform: none; transition: opacity 300ms linear, visibility 0s linear 300ms; }
 html.ui-motion-reduce .ui-brain[data-open="true"] { transition: opacity 300ms linear, visibility 0s; }
 html.ui-motion-reduce .ui-speed-thumb, html.ui-motion-reduce .ui-brain-energy-fill { transition: none; }
 html.ui-motion-reduce .ui-hud-env, html.ui-motion-reduce .ui-hud-env[data-open="true"] { transition: opacity 250ms linear, visibility 0s; }
+
+/* screen-reader-only text (live regions), kept in the ui- namespace */
+.ui-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }

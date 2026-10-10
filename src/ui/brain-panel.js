@@ -17,6 +17,7 @@
  */
 import './ui.css';
 import { prefersReducedMotion } from '../core/env.js';
+import { holdMotionClass } from './motion.js';
 
 const IN_LABELS = ['food ←→', 'food ahead', 'food near', 'others ←→', 'others ahead', 'others near', 'energy', 'wall near', 'bias'];
 const OUT_LABELS = ['turn', 'thrust', 'eat', 'mate'];
@@ -87,7 +88,7 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
         <ol class="ui-brain-chips" data-k="chips"></ol>
       </section>
     </div>
-    <p class="sr-only" aria-live="polite" data-k="live"></p>`;
+    <p class="ui-sr-only" aria-live="polite" data-k="live"></p>`;
   root.append(el);
 
   const $ = (s) => el.querySelector(s);
@@ -170,8 +171,13 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
     requestAnimationFrame(() => { refs.live.textContent = text; });
   }
 
+  let returnFocus = null;
   function setOpen(v) {
     if (open === v) return;
+    if (v) {
+      const a = document.activeElement;
+      returnFocus = a && a !== document.body && !el.contains(a) ? a : null;
+    }
     open = v;
     el.dataset.open = String(v);
     el.inert = !v;
@@ -192,14 +198,26 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
   };
   refs.chips.addEventListener('click', onChip);
 
-  const userClose = () => { setOpen(false); onClose(); };
+  // a user close hands focus back to where it was before show(), or to the HUD's
+  // speed group; it only moves focus that would otherwise be lost in the inert panel
+  const userClose = () => {
+    const a = document.activeElement;
+    const lost = !a || a === document.body || el.contains(a);
+    setOpen(false);
+    if (lost) {
+      const back = returnFocus?.isConnected && !returnFocus.closest('[inert]') ? returnFocus : document.querySelector('.ui-speed-opt[tabindex="0"]');
+      back?.focus({ preventScroll: true });
+    }
+    returnFocus = null;
+    onClose();
+  };
   closeBtn.addEventListener('click', userClose);
   const onKey = (e) => {
     if (e.key === 'Escape' && open && !e.defaultPrevented) { e.preventDefault(); userClose(); }
   };
   window.addEventListener('keydown', onKey);
 
-  if (prefersReducedMotion()) document.documentElement.classList.add('ui-motion-reduce');
+  const releaseMotion = holdMotionClass();
 
   const api = {
     show(ins) {
@@ -241,6 +259,7 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
       closeBtn.removeEventListener('click', userClose);
       refs.chips.removeEventListener('click', onChip);
       viz.destroy();
+      releaseMotion();
       delete document.documentElement.dataset.uiBrain;
       el.remove();
     },
