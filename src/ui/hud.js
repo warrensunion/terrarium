@@ -8,7 +8,7 @@
  * lands in the right place without the live screen knowing the HUD's layout.
  */
 import './ui.css';
-import { prefersReducedMotion } from '../core/env.js';
+import { holdMotionClass } from './motion.js';
 
 const SPEEDS = [0, 1, 4, 16];
 const DEFAULT_PARAMS = { foodRate: 1, mutationRate: 0.3, temperature: 0.5 };
@@ -70,7 +70,7 @@ export function createHud(root, { onSpeed = () => {}, onParams = () => {}, onRes
       </div>
     </div>`;
   root.append(el);
-  if (prefersReducedMotion()) document.documentElement.classList.add('ui-motion-reduce');
+  const releaseMotion = holdMotionClass();
 
   const $ = (s) => el.querySelector(s);
   const out = { gen: $('[data-k=gen]'), pop: $('[data-k=pop]'), sp: $('[data-k=sp]') };
@@ -170,6 +170,8 @@ export function createHud(root, { onSpeed = () => {}, onParams = () => {}, onRes
       // keyboard users pressing Space on a focused control mean that control
       if (e.target instanceof Element && e.target.closest('button, a, [role=radio], [role=button], summary')) return;
       e.preventDefault();
+      // holding Space must not flicker between paused and running
+      if (e.repeat) return;
       choose(current === 0 ? lastRunning : 0);
     } else if (e.key === '1' || e.key === '2' || e.key === '3') {
       choose(SPEEDS[Number(e.key)]);
@@ -212,6 +214,7 @@ export function createHud(root, { onSpeed = () => {}, onParams = () => {}, onRes
       el.removeEventListener('click', onClick);
       group.removeEventListener('keydown', onGroupKey);
       ro.disconnect();
+      releaseMotion();
       el.remove();
     },
   };

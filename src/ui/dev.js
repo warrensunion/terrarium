@@ -162,6 +162,8 @@ const panel = createBrainPanel(root, {
   },
   speciesHue: (id) => species.find((s) => s.id === id)?.hue,
 });
+// handles for scripted checks (dev bench only)
+window.__ui = { hud, river, panel };
 function newCreatureWithId(id) { const c = newCreature(); c.id = id; return c; }
 
 // a long history so the river is full on first look
