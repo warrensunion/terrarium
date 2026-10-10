@@ -1,0 +1,133 @@
+{
+ "failures": [],
+ "report": {
+  "390": {
+   "logs": [
+    "[terrarium] preloader on",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] intro part 2",
+    "[terrarium] prefetched three",
+    "[terrarium] intro part 3",
+    "[terrarium] intro part 4",
+    "[terrarium] intro part 5",
+    "[terrarium] screen /about",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] screen /",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] fallback: forced off by ?webgl=0",
+    "[terrarium] screen /live"
+   ],
+   "backend": "webgpu",
+   "hiddenSteps": 80
+  },
+  "1440": {
+   "logs": [
+    "[terrarium] preloader on",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] intro part 2",
+    "[terrarium] prefetched three",
+    "[terrarium] intro part 3",
+    "[terrarium] intro part 4",
+    "[terrarium] intro part 5",
+    "[terrarium] screen /about",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] screen /",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] fallback: forced off by ?webgl=0",
+    "[terrarium] screen /live"
+   ],
+   "backend": "webgpu",
+   "fps-1x": {
+    "fps": 60.2,
+    "p50": 16.7,
+    "p95": 16.7,
+    "population": 562,
+    "mainThreadMs": 3.91
+   },
+   "fps-16x": {
+    "fps": 60.1,
+    "p50": 16.7,
+    "p95": 16.8,
+    "population": 844,
+    "mainThreadMs": 4.22
+   },
+   "hiddenSteps": 144,
+   "cap": {
+    "mainThreadMs": 6.37,
+    "population": 713
+   }
+  },
+  "1920": {
+   "logs": [
+    "[terrarium] preloader on",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] screen /",
+    "[terrarium] prefetched three",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] screen /",
+    "[terrarium] intro part 2",
+    "[terrarium] prefetched three",
+    "[terrarium] intro part 3",
+    "[terrarium] intro part 4",
+    "[terrarium] intro part 5",
+    "[terrarium] screen /about",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] screen /",
+    "[terrarium] screen /live",
+    "[terrarium] sim backend: webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] jar ready on webgpu compute sensing, inputs 1 step old at 1x, up to 3 at 4x/16x",
+    "[terrarium] fallback: forced off by ?webgl=0",
+    "[terrarium] screen /live"
+   ],
+   "backend": "webgpu",
+   "fps-1x": {
+    "fps": 60.1,
+    "p50": 16.7,
+    "p95": 16.8,
+    "population": 564,
+    "mainThreadMs": 3.89
+   },
+   "fps-16x": {
+    "fps": 60.2,
+    "p50": 16.7,
+    "p95": 16.8,
+    "population": 812,
+    "mainThreadMs": 4.53
+   },
+   "hiddenSteps": 64
+  }
+ }
+}

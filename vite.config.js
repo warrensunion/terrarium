@@ -8,6 +8,9 @@ export default defineConfig({
   worker: { format: 'es' },
   build: {
     target: 'es2022',
+    // three.js is one 705 kB (181 kB gzip) chunk; it loads only for the jar
+    // and is prefetched while the intro plays, so the warning is expected
+    chunkSizeWarningLimit: 750,
     rollupOptions: { input: { main: resolve(import.meta.dirname, 'index.html') } },
   },
 });

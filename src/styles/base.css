@@ -13,3 +13,8 @@ img, canvas, svg { display: block; max-width: 100%; }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--lichen); outline-offset: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+h1:focus:not(:focus-visible) { outline: none; }
+.route-error { max-width: 32rem; margin: 30vh auto 0; padding: 0 16px; color: var(--fog); font-size: var(--t-1); }
+.route-error a { color: var(--lichen); }

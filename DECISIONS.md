@@ -25,3 +25,5 @@ One line each: the decision, and why. Newest at the bottom.
 - PNG measuring/keying tools written in plain node (`art-src/tools/png.mjs`) — no image library dependency.
 - Population capped at 1000 births-wise (`POP_CAP`, buffers stay 2000) — evolved creatures get efficient and a jar grows past 1400, where leg IK for every creature costs most of a laptop frame; 1000 also still reads as individuals.
 - Default food rate 1.3 (slider 0–3) — at 1.0 the first die-off dips to 320–430 creatures; 1.3 keeps it above 500 (measured, two seeds).
+- Raised Vite's chunk-size warning to 750 kB — the only large chunk is three.js (181 kB gzip), lazy-loaded for the jar and prefetched during the intro.
+- `web-design-guidelines` skill is not installed — ran the audit by hand against the Web Interface Guidelines checklist (docs/audit.md).
