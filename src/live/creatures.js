@@ -73,7 +73,8 @@ void main() {
   // countershading: a darker back, a pale belly, like real small animals
   alb *= mix(1.0, 0.82, smoothstep(0.2, 0.95, vObj.y));
   alb = mix(alb, mix(alb, uCream, 0.55), smoothstep(-0.15, -0.7, vObj.y));
-  if (vPattern > 1.5) {
+  float pat = floor(vPattern + 0.01), ov = (fract(vPattern + 0.01) - 0.01) * 2.0;
+  if (pat > 1.5) {
     // spotted: a few soft dark spots across the back
     // spotted: a few large irregular blotches, different on every segment
     vec2 sp = vObj.xz * 1.35 + seed * 9.0 + vMisc.x * 5.3;
@@ -83,7 +84,7 @@ void main() {
     float wob = 0.04 * sin(atan(g.y - jit.y * 0.4, g.x - jit.x * 0.4) * 3.0 + seed * 20.0);
     float s = smoothstep(rr + 0.03, rr - 0.03, length(g - jit * 0.4) + wob) * step(0.3, lvHash(ci + 6.0));
     alb = mix(alb, alb * 0.42, s * smoothstep(-0.2, 0.25, vObj.y));
-  } else if (vPattern > 0.5) {
+  } else if (pat > 0.5) {
     // banded: alternate segments darker, with a pale dorsal line
     alb *= mix(1.0, 0.6, vMisc.y);
     alb = mix(alb, uCream * 0.9, smoothstep(0.14, 0.06, abs(vObj.x)) * smoothstep(0.3, 0.8, vObj.y) * 0.6);
@@ -91,6 +92,8 @@ void main() {
   // starving creatures fade toward grey
   float e = clamp(vCol.a, 0.0, 1.0);
   alb = mix(vec3(dot(alb, vec3(0.3, 0.55, 0.15))) * 0.8, alb, 0.72 + 0.28 * e);
+  // at the overview, ease toward gouache: less chroma, so 1000 creatures read as paint, not candy
+  alb = mix(vec3(dot(alb, vec3(0.3, 0.55, 0.15))), alb, 1.0 - 0.25 * clamp(ov, 0.0, 1.0));
   // gouache brush grain
   alb *= 0.93 + 0.14 * lvNoise(vObj.xy * 6.0 + vObj.z * 3.0 + seed * 17.0);
   float ao = smoothstep(-1.0, 0.3, vObj.y) * 0.75 + 0.25;
@@ -228,6 +231,8 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
   // reused on the frames a mid-LOD creature skips its IK
   const lod = new Uint8Array(max).fill(LOD_FULL);
   const legOff = new Float32Array(max * MAX_SEG * 2 * 6);
+  const footY = new Float32Array(max * MAX_SEG * 2);   // planted feet keep their solved height on off-frames
+  const segGround = new Float32Array(max * MAX_SEG);   // far creatures refresh one segment's ground per frame
   let camX = 0, camY = 0, camZ = 0, pxPerUnit = 0, frameNo = 0;
 
   const speciesHue = new Map();
@@ -288,7 +293,9 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     bodyRGB[o] = tmpRGB[0]; bodyRGB[o + 1] = tmpRGB[1]; bodyRGB[o + 2] = tmpRGB[2];
     spec[s] = birth.species ?? -1;
     recolor(s);
-    lod[s] = LOD_FULL;
+    // a reused slot must not show its previous occupant's legs: starting at FAR forces a
+    // replant and a full solve on the first frame it is drawn with legs
+    lod[s] = LOD_FAR;
     placed[s] = 0; grow[s] = 0; dying[s] = -1; phase[s] = seed[s] * 6.28; speedEst[s] = 0; energy[s] = 1;
     stampPrev[s] = stampNext[s] = -1;
     activeIdx[s] = nActive; active[nActive++] = s;
@@ -320,6 +327,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       chain[o + 1] = 0;
       const gx = chain[o], gz = chain[o + 2], lat = legLayout(r, leg[s], lay).latF;
       resetPair(gait, (s * MAX_SEG + i) * GAIT.SIZE, gx - fz * lat, gz + fx * lat, gx + fz * lat, gz - fx * lat, i & 1);
+      segGround[s * MAX_SEG + i] = heightAt(gx / WORLD_R, gz / WORLD_R); // valid ground before the round robin starts
     }
     lastX[s] = X; lastZ[s] = Z;
     placed[s] = 1;
@@ -421,17 +429,20 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       }
       const bodyY = legLayout(r, L, lay).bodyY;
       // how big is this creature on screen? (no view set = always full detail)
-      let lv = LOD_FULL, boost = 1;
+      let lv = LOD_FULL, boost = 1, ov = 0;
       if (pxPerUnit > 0) {
         const cx = X - camX, cy = bodyY - camY, cz = Z - camZ;
         const px = projectedPx(r, Math.sqrt(cx * cx + cy * cy + cz * cz), pxPerUnit);
-        lv = lodFor(px, lod[s]);
+        lv = s === selectedSlot ? LOD_FULL : lodFor(px, lod[s]); // the followed creature is always full
+        // overview colour eases toward gouache (less chroma); close-ups keep full colour
+        ov = px >= 16 ? 0 : px <= 7 ? 1 : (16 - px) / 9;
         // at the overview a 5 px body is noise: draw small bodies up to 1.45x (bodies only;
         // legs keep their real geometry). Fades out by 12 px, so close-ups are true size.
         if (px < 12) { const u = px <= 5 ? 1 : (12 - px) / 7; boost = 1 + 0.45 * u * u * (3 - 2 * u); }
       }
       const replant = lod[s] === LOD_FAR && lv !== LOD_FAR; // gait state is stale after the analytic swing
       lod[s] = lv;
+      const ringI = (frameNo + s) % n; // far: the one segment whose ground is re-sampled this frame
       const solveNow = lv === LOD_FULL || replant || (lv === LOD_MID && (s + frameNo) % MID_EVERY === 0);
       const gaitDt = lv === LOD_MID ? dt * MID_EVERY : dt;
       if (lv === LOD_FAR) debug.far++; else if (lv === LOD_MID) debug.mid++; else debug.full++;
@@ -451,18 +462,25 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         const t = n > 1 ? i / (n - 1) : 0;
         const ri = r * (i === 0 ? 0.92 : 1 - 0.35 * t * t) * env;
         const gx = chain[c], gz = chain[c + 2];
-        const ground = heightAt(gx / WORLD_R, gz / WORLD_R);
+        // ground: every segment every frame, except far creatures, which re-sample one
+        // segment per frame (round robin) and reuse the rest: one heightAt per far creature
+        const gi = s * MAX_SEG + i;
+        let ground;
+        if (lv !== LOD_FAR || i === ringI) { ground = heightAt(gx / WORLD_R, gz / WORLD_R); segGround[gi] = ground; }
+        else ground = segGround[gi];
         const bob = bobAmt * r * (phS < 0 ? -phS : phS);
+        // a boosted (overview) body is lifted so it sits on the ground; hips and legs
+        // ride the same lift, so the boosted body never swallows its legs
+        const rv = ri * boost, lift = (boost - 1) * 0.82 * ri;
         // births/deaths scale the whole creature (no sinking into the ground), so its legs stay in reach at every size
-        const gy = ground + (bodyY + bob) * env;
+        const gy = ground + (bodyY + bob) * env + lift;
         chain[c + 1] = gy;
         mx += gx; my += gy; mz += gz;
 
         // segment instance
         let q = ns * 4;
-        const rv = ri * boost, gv = gy + (boost - 1) * 0.82 * ri; // boosted body sits on the ground, not in it
-        aPos[q] = gx; aPos[q + 1] = gv; aPos[q + 2] = gz; aPos[q + 3] = rv;
-        aFwd[q] = fx; aFwd[q + 1] = 0; aFwd[q + 2] = fz; aFwd[q + 3] = pattern[s];
+        aPos[q] = gx; aPos[q + 1] = gy; aPos[q + 2] = gz; aPos[q + 3] = rv;
+        aFwd[q] = fx; aFwd[q + 1] = 0; aFwd[q + 2] = fz; aFwd[q + 3] = pattern[s] + ov * 0.5; // pattern int, overview in the fraction
         aCol[q] = rgb[o]; aCol[q + 1] = rgb[o + 1]; aCol[q + 2] = rgb[o + 2]; aCol[q + 3] = energy[s];
         aMisc[q] = t; aMisc[q + 1] = i & 1; aMisc[q + 2] = selected; aMisc[q + 3] = seed[s];
         // contact shadow
@@ -505,10 +523,14 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
             if (!solveTwoBone(hip, tgt, l1, l2, pole, knee, end).reached && st < 0) { gait[go + (side === 0 ? GAIT.LF : GAIT.RF)] = 1; debug.unreached++; }
             legOff[lo] = knee.x - hip.x; legOff[lo + 1] = knee.y - hip.y; legOff[lo + 2] = knee.z - hip.z;
             legOff[lo + 3] = end.x - hip.x; legOff[lo + 4] = end.y - hip.y; legOff[lo + 5] = end.z - hip.z;
+            footY[lo / 6] = end.y;
           } else {
-            // mid LOD, off frame: last frame's leg pose carried along with the hip
+            // mid LOD, off frame: a planted foot stays exactly where it is planted (no 20 Hz
+            // sawtooth); the knee and a foot in the air ride along with the hip
             knee.x = hip.x + legOff[lo]; knee.y = hip.y + legOff[lo + 1]; knee.z = hip.z + legOff[lo + 2];
-            end.x = hip.x + legOff[lo + 3]; end.y = hip.y + legOff[lo + 4]; end.z = hip.z + legOff[lo + 5];
+            const FX = side === 0 ? GAIT.LX : GAIT.RX, FT = side === 0 ? GAIT.LT : GAIT.RT;
+            if (gait[go + FT] < 0) { end.x = gait[go + FX]; end.z = gait[go + FX + 1]; end.y = footY[lo / 6]; }
+            else { end.x = hip.x + legOff[lo + 3]; end.y = hip.y + legOff[lo + 4]; end.z = hip.z + legOff[lo + 5]; }
           }
           let b = nb * 4;
           bA_[b] = hip.x; bA_[b + 1] = hip.y; bA_[b + 2] = hip.z; bA_[b + 3] = th;
@@ -527,10 +549,10 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
           // two bead eyes (sub-pixel on far creatures, so skipped there) on the front of the head
           for (let side = -1; side <= 1; side += 2) {
             const e = ne * 4;
-            ePos[e] = gx + fx * 0.68 * ri - fz * 0.42 * ri * side;
-            ePos[e + 1] = gy + 0.3 * ri;
-            ePos[e + 2] = gz + fz * 0.68 * ri + fx * 0.42 * ri * side;
-            ePos[e + 3] = 0.24 * ri;
+            ePos[e] = gx + fx * 0.68 * rv - fz * 0.42 * rv * side;
+            ePos[e + 1] = gy + 0.3 * rv;
+            ePos[e + 2] = gz + fz * 0.68 * rv + fx * 0.42 * rv * side;
+            ePos[e + 3] = 0.24 * rv;
             eLook[ne * 3] = fx; eLook[ne * 3 + 1] = 0; eLook[ne * 3 + 2] = fz;
             ne++;
           }
@@ -539,7 +561,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       // proxy sphere for picking and the follow camera
       const m4 = s * 4;
       mid[m4] = mx / n; mid[m4 + 1] = my / n; mid[m4 + 2] = mz / n;
-      mid[m4 + 3] = Math.max(0.18, 0.5 * SPACING * r * (n - 1) + r * 1.5);
+      mid[m4 + 3] = Math.max(0.18, (0.5 * SPACING * r * (n - 1) + r * 1.5) * boost); // as drawn
     }
 
     segMesh.geo.instanceCount = ns; commit(sA, ns);
