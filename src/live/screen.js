@@ -223,7 +223,7 @@ function fallback(root, reason) {
       <p>Try a recent Chrome, Edge, Firefox or Safari with hardware acceleration turned on.</p>
       <p class="lv-fallback-links"><a href="#/about">How it works</a> <a href="#/">Back to the start</a></p>
     </div>`;
-  el.querySelector('.lv-fallback-text p').textContent = `This browser can't draw the 3D jar (${reason}). The painting above shows what is inside: a few hundred small creatures that eat, have young and slowly evolve into new species.`;
+  el.querySelector('.lv-fallback-text p').textContent = `This browser can’t draw the 3D jar (${reason}). The painting above shows what is inside: a few hundred small creatures that eat, have young and slowly evolve into new species.`;
   root.append(el);
   return { destroy() { el.remove(); } };
 }
