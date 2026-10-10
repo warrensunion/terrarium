@@ -88,22 +88,41 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 }
 `;
 
+// A driver can leave requestAdapter/requestDevice pending forever, which would
+// hold up init (and the visitor at the fog) for good. Both share one deadline;
+// past it the worker senses on the CPU and says why.
+const GPU_TIMEOUT_MS = 3500;
+const TIMED_OUT = Symbol('timed out');
+
 /** @returns {Promise<{ sense(world): Promise<void>, destroy(): void } | { error: string }>} */
-export async function createGpuSensor() {
+export async function createGpuSensor({ timeoutMs = GPU_TIMEOUT_MS } = {}) {
   const gpu = typeof navigator !== 'undefined' ? navigator.gpu : undefined;
   if (!gpu) return { error: 'navigator.gpu missing in worker' };
+  const deadline = Date.now() + timeoutMs;
+  const inTime = (p) => {
+    let timer = 0;
+    const late = new Promise((r) => { timer = setTimeout(() => r(TIMED_OUT), Math.max(0, deadline - Date.now())); });
+    return Promise.race([p, late]).finally(() => clearTimeout(timer));
+  };
   let adapter;
   try {
-    adapter = await gpu.requestAdapter();
+    adapter = await inTime(gpu.requestAdapter());
   } catch (e) {
     return { error: 'requestAdapter threw: ' + e.message };
   }
+  if (adapter === TIMED_OUT) return { error: `requestAdapter timed out after ${timeoutMs} ms` };
   if (!adapter) return { error: 'requestAdapter returned null' };
   let device;
+  let pending;
   try {
-    device = await adapter.requestDevice();
+    pending = adapter.requestDevice();
+    device = await inTime(pending);
   } catch (e) {
     return { error: 'requestDevice failed: ' + e.message };
+  }
+  if (device === TIMED_OUT) {
+    pending.then((d) => d.destroy(), () => {}); // a device that turns up late must not linger
+    return { error: `requestDevice timed out after ${timeoutMs} ms` };
   }
 
   let lost = '';

@@ -39,6 +39,7 @@ const SECTIONS = [
   ['Controls', [
     'Drag to look around the jar and scroll or pinch to move closer. Click or tap a creature to follow it and see its brain at work: its neurons light up as it decides. Close the panel to let it go.',
     'The panel at the edge sets the speed (pause, 1×, 4×, 16×) and three dials: how much food grows, how often genes mutate, and the temperature. Reset starts a new jar.',
+    'With a keyboard: press F, or use the Follow a creature button at the top, to follow a well-fed creature near the middle; press F again for another. Space pauses and resumes, 1, 2 and 3 pick 1×, 4× and 16×, and Escape closes the panel.',
   ]],
 ];
 

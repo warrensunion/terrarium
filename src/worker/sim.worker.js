@@ -4,10 +4,12 @@
  * per rAF and always gets exactly one answer back: a frame (even for 0
  * steps, and an empty one before init), with its typed arrays transferred
  * rather than copied, or `{type:'error', message, request}` if handling
- * failed. An error ends that request; no frame follows for it.
+ * failed. An error ends that request; no frame follows for it. A failed
+ * init is answered with `request: 'init'` and every step after it with an
+ * error too (never an empty frame), so the screen can say the jar failed.
  *
- * Sensing goes to WebGPU when the worker can get an adapter and device,
- * otherwise to the CPU grid; the choice and its reason are posted in
+ * Sensing goes to WebGPU when the worker can get an adapter and device
+ * within 3.5 s, otherwise to the CPU grid; the choice and its reason are posted in
  * `ready` and logged, so "why is it on the CPU?" always has an answer.
  * If the device is lost mid-run the world quietly falls back to the CPU.
  *
@@ -38,6 +40,7 @@ import { senseCPU } from '../sim/sense-cpu.js';
 import { createGpuSensor } from './sense-gpu.js';
 
 let world = null;
+let initError = null; // set when init threw; steps then answer with an error
 let config = null;
 let gpu = null;
 let backend = 'cpu';
@@ -72,14 +75,22 @@ self.onmessage = (e) => {
 async function handle(msg) {
   switch (msg?.type) {
     case 'init':
-      config = { seed: msg.seed ?? 1, count: msg.count ?? 600, params: { ...msg.params } };
-      await chooseBackend();
-      newWorld(config.seed, 0);
+      try {
+        config = { seed: msg.seed ?? 1, count: msg.count ?? 600, params: { ...msg.params } };
+        await chooseBackend();
+        newWorld(config.seed, 0);
+      } catch (err) {
+        world = null;
+        initError = String(err?.message || err);
+        throw err; // answered as {type:'error', request:'init'}
+      }
       self.postMessage({ type: 'ready', backend, reason });
       if (msg.simcheck || urlSimcheck) await simcheck();
       return;
     case 'step':
       pendingSteps--;
+      // a world that failed to start must not pass for an empty jar
+      if (initError) throw new Error('no world: init failed (' + initError + ')');
       if (!world) {
         self.postMessage(emptyFrame());
         return;

@@ -1,5 +1,7 @@
-/* The live screen's own chrome: the full-bleed stage, the wordmark and a
-   one-line hint. The HUD and the brain panel bring their own CSS (ui-). */
+/* The live screen's own chrome: the full-bleed stage, the wordmark, a quiet
+   "Follow a creature" control beside it (the keyboard way into the brain
+   panel) and a one-line hint. The HUD and the brain panel bring their own
+   CSS (ui-). */
 .lv { position: fixed; inset: 0; overflow: hidden; background: var(--ink-lift); color: var(--fog); }
 .lv-stage { position: absolute; inset: 0; touch-action: none; }
 .lv-stage canvas { width: 100%; height: 100%; }
@@ -9,14 +11,20 @@
 }
 .lv.is-ready::after { opacity: 0; }
 
-.lv-nav {
+.lv-top {
   position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 11;
-  display: flex; align-items: baseline; gap: 22px;
+  display: flex; align-items: baseline; gap: 22px; white-space: nowrap;
   text-shadow: 0 1px 12px rgb(20 36 31 / 0.55);
 }
+.lv-nav { display: flex; align-items: baseline; gap: 22px; }
 .lv-mark { font: 400 26px/1 var(--font-display); color: var(--highlight); text-decoration: none; }
 .lv-link { font: 500 14px/1 var(--font-text); color: var(--fog); text-decoration: none; opacity: 0.85; }
 .lv-link:hover, .lv-mark:hover { text-decoration: underline; text-underline-offset: 4px; }
+.lv-follow {
+  font: 500 14px/1 var(--font-text); color: var(--fog); opacity: 0.85; text-shadow: inherit;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+.lv-follow:hover { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
 
 .lv-hint {
   position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); z-index: 9; margin: 0;
@@ -32,7 +40,8 @@
   background: var(--moss); color: var(--fog); font-size: 15px;
 }
 @media (max-width: 699px) {
-  .lv-nav { top: auto; bottom: calc(env(safe-area-inset-bottom) + 12px); gap: 16px; }
+  .lv-top { top: auto; bottom: calc(env(safe-area-inset-bottom) + 12px); gap: 16px; }
+  .lv-nav { gap: 16px; }
   .lv-mark { font-size: 20px; }
   .lv-hint { display: none; }
 }
