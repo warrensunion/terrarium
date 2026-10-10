@@ -192,7 +192,7 @@ export function createRiver(canvas) {
     // hairline seams between lineages, in the panel's ink
     ctx.strokeStyle = 'rgba(20,36,31,0.45)';
     ctx.lineWidth = 0.75;
-    for (const L of layers) { ctx.beginPath(); bank(L.top, true); ctx.stroke(); }
+    for (let i = 0; i < layers.length - 1; i++) { ctx.beginPath(); bank(layers[i].top, true); ctx.stroke(); }
 
     // the past dissolves into fog on the left
     ctx.globalCompositeOperation = 'destination-out';

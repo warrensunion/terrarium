@@ -156,8 +156,7 @@ export function createHud(root, { onSpeed = () => {}, onParams = () => {}, onRes
       setEnv(open);
       // the sliders sit above the dock, so a keyboard user is taken to them
       if (open && e.detail === 0) inputs[0].focus({ preventScroll: true });
-    }
-    else if (b.dataset.act === 'reset') onReset();
+    } else if (b.dataset.act === 'reset') onReset();
     // a mouse click must not leave focus on a button, or the next Space would
     // press it again instead of toggling pause
     if (e.detail > 0) b.blur();
