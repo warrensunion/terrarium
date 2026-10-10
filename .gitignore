@@ -4,3 +4,4 @@ dist
 art-src/gen/*.png
 !art-src/gen/.keep
 design-reference/**/frames/
+.superpowers/
