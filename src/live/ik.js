@@ -11,6 +11,7 @@
  */
 
 const EPS = 1e-9;
+const RESULT = { knee: null, end: null, reached: false };
 
 /**
  * Two-bone IK (hip → knee → foot).
@@ -21,7 +22,8 @@ const EPS = 1e-9;
  * @param {{x,y,z}} pole a point the knee bends toward
  * @param {{x,y,z}} [knee] out
  * @param {{x,y,z}} [end] out
- * @returns {{knee, end, reached:boolean}} reached = target lies within [|l1-l2|, l1+l2]
+ * @returns {{knee, end, reached:boolean}} reached = target lies within [|l1-l2|, l1+l2].
+ *   The returned object is reused by the next call (no allocation per leg).
  */
 export function solveTwoBone(hip, target, l1, l2, pole, knee = { x: 0, y: 0, z: 0 }, end = { x: 0, y: 0, z: 0 }) {
   let dx = target.x - hip.x, dy = target.y - hip.y, dz = target.z - hip.z;
@@ -58,7 +60,8 @@ export function solveTwoBone(hip, target, l1, l2, pole, knee = { x: 0, y: 0, z: 
   } else {
     end.x = hip.x + dx * dc; end.y = hip.y + dy * dc; end.z = hip.z + dz * dc;
   }
-  return { knee, end, reached };
+  RESULT.knee = knee; RESULT.end = end; RESULT.reached = reached;
+  return RESULT;
 }
 
 /**
@@ -122,8 +125,9 @@ export function stepFeet(g, o, rlx, rlz, rrx, rrz, threshold, dt, duration, over
   if (g[o + S.LT] >= 0 && advance(g, o, S.LX, S.LFX, S.LTX, S.LT, dt, duration)) g[o + S.LAST] = 0;
   if (g[o + S.RT] >= 0 && advance(g, o, S.RX, S.RFX, S.RTX, S.RT, dt, duration)) g[o + S.LAST] = 1;
 
-  const lagL = Math.hypot(rlx - g[o + S.LX], rlz - g[o + S.LZ]);
-  const lagR = Math.hypot(rrx - g[o + S.RX], rrz - g[o + S.RZ]);
+  const ax = rlx - g[o + S.LX], az = rlz - g[o + S.LZ], bx = rrx - g[o + S.RX], bz = rrz - g[o + S.RZ];
+  const lagL = Math.sqrt(ax * ax + az * az);
+  const lagR = Math.sqrt(bx * bx + bz * bz);
   const far = threshold * 6;
   if (lagL > far) { g[o + S.LX] = rlx; g[o + S.LZ] = rlz; g[o + S.LT] = -1; }
   if (lagR > far) { g[o + S.RX] = rrx; g[o + S.RZ] = rrz; g[o + S.RT] = -1; }
