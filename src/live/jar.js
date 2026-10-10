@@ -147,6 +147,9 @@ void main() {
   vec2 p = vPos.xz;
   vec3 alb = uTop * (0.8 + 0.35 * lvFbm(p * vec2(0.25, 1.6)) + 0.08 * lvNoise(p * 9.0));
   vec3 c = lvGouache(alb, vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0), 1.0, 0.0);
+  // with the painted room present, the tabletop IS the painting; we only add the jar's shadow
+  vec2 suv = gl_FragCoord.xy / uViewport;
+  c = mix(c, lvBackdrop(suv), uHasBackdrop);
   // the jar's long shadow, away from the key light, and the caustic the glass focuses into it
   vec2 dir = -uKeyDir.xz / uKeyDir.y;
   vec2 q = p - dir * uJarH * 0.45;
@@ -159,7 +162,6 @@ void main() {
   float caustic = exp(-dot(cq, cq) * 0.35) * (0.75 + 0.25 * lvNoise(cq * 3.0 + uTime * 0.1));
   c += uKeyCol * uTint * caustic * 0.16 * shadow;
   // the tabletop dissolves into the room
-  vec2 suv = gl_FragCoord.xy / uViewport;
   float far = smoothstep(11.0, 34.0, length(p));
   c = mix(c, lvBackdrop(suv), far);
   gl_FragColor = vec4(c, 1.0);

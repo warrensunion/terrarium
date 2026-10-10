@@ -75,7 +75,7 @@ void main() {
   float fine = lvNoise(p * 14.0) * 0.6 + lvNoise(p * 37.0) * 0.4;
   vec3 moss = mix(uMossA, uMossB, smoothstep(0.3, 0.7, big));
   moss = mix(moss, uMossC, smoothstep(0.55, 0.8, mid) * 0.7);
-  if (uHasMoss > 0.5) moss = mix(moss, texture2D(uMoss, p * 0.32).rgb, 0.75);
+  if (uHasMoss > 0.5) { vec3 t = texture2D(uMoss, p * 0.32).rgb; moss = mix(moss, mix(vec3(dot(t, vec3(0.3, 0.55, 0.15))), t, 0.8) * 0.62, 0.7); }
   // cushions: fine bumps read as moss texture
   // close up: fibrous strands of moss, so the ground has a texture under the creatures
   float fib = lvNoise(p * vec2(90.0, 30.0)) * lvNoise(p * vec2(28.0, 85.0) + 5.0);

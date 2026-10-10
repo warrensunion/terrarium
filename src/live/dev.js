@@ -52,7 +52,8 @@ function createFakeWorld(count, seed = 3) {
       life: 50 + R() * 40, rest: 0, wander: R() * 6.283,
     };
     pop.push(c);
-    births.push({ id: c.id, body: c.body, species: c.species, generation: gen, parents });
+    // like the real worker: body is already derived, raw genes ride along
+    births.push({ id: c.id, body: bodyFromGenes(c.body), genes: c.body, species: c.species, generation: gen, parents });
     return c;
   };
   for (let i = 0; i < count; i++) {
@@ -135,7 +136,7 @@ function createFakeWorld(count, seed = 3) {
 // ---------------------------------------------------------------- page
 const host = document.querySelector('.lv-stage');
 const reduced = prefersReducedMotion();
-const stage = createStage(host, { bodyFromGenes, reducedMotion: reduced, pixelRatio: Number(param('dpr')) || undefined });
+const stage = createStage(host, { bodyFromGenes: (b) => b, reducedMotion: reduced, pixelRatio: Number(param('dpr')) || undefined });
 const canvas = stage.canvas;
 const world = createFakeWorld(Number(param('n')) || 600);
 let speed = Number(param('speed')) || 1;
