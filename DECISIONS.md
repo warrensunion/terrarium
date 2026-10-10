@@ -27,3 +27,16 @@ One line each: the decision, and why. Newest at the bottom.
 - Default food rate 1.3 (slider 0–3) — at 1.0 the first die-off dips to 320–430 creatures; 1.3 keeps it above 500 (measured, two seeds).
 - Raised Vite's chunk-size warning to 750 kB — the only large chunk is three.js (181 kB gzip), lazy-loaded for the jar and prefetched during the intro.
 - `web-design-guidelines` skill is not installed — ran the audit by hand against the Web Interface Guidelines checklist (docs/audit.md).
+- Sim, 3D jar, UI and intro built by parallel agents in separate git worktrees, each task reviewed (spec + quality) and re-reviewed after fixes, then a whole-branch review and one fix wave — Warren asked for parallel agents on independent pieces; worktrees removed the file-conflict risk.
+- Work committed straight to `master` of the new repo — nothing else shares it; no push, no remote.
+- Food regrows `foodRate·6` pellets per sim step, not per second — per second feeds ~10 creatures; the spec needs 500+.
+- Species threshold rises when there are too many species (the plan had it backwards) — the plan's direction collapsed the jar to one species.
+- Worker births carry the derived `body` plus raw `genes` — one gene→body mapping (`src/sim/genes.js`), the renderer takes bodies as-is.
+- GPU sensing reads back every 2 steps: inputs 1 step old at 1x, at most 3 at 4x/16x — 4-step chunks made bearings ~117 ms stale at 16x; 2 is still faster than the CPU at 16x.
+- Intro letter beat capped at min(18 ms, 2 s / letters) — 18 ms per letter would make scene 3's text take 5 s, out of makemepulse's rhythm.
+- Title-plate wipe done with counter-translating transforms, not `clip-path` — same look, stays on the compositor.
+- Species colour weight 60% (plan said 35%) — at 35% the gouache grade washed species to grey; species must read at a glance.
+- Creature legs by on-screen size (none under ~8 px, IK every third frame to 20 px) — halves the main-thread cost at 1000 creatures; close-ups unchanged.
+- A worker that errors or sends no frame in 8 s shows a message; GPU adapter/device time out at 3.5 s and fall back to the CPU — a silent empty jar was the worst failure mode.
+- Parked: a hang in WebGPU `popErrorScope` after a device exists is caught by the 8 s watchdog (message) rather than a CPU fallback — rare driver case.
+- Parked: the first frame after unpausing can lift the interpolation interval for ~10 frames — a barely visible hitch.
