@@ -117,6 +117,8 @@ export function createStage(container, { bodyFromGenes, reducedMotion = false, m
       dt = dt > 0.1 ? 0.1 : dt < 0 ? 0 : dt; // a hidden tab must not come back as one huge step
       time += dt;
       lightUniforms.uTime.value = time;
+      // leg LOD needs the view; last frame's camera is close enough
+      creatures.setView(camera.position, canvas.clientHeight / (2 * Math.tan((camera.fov * Math.PI) / 360)));
       if (next) creatures.update(prev, next, alpha, dt);
       rig.update(dt);
       const s = renderer.getDrawingBufferSize(buf);

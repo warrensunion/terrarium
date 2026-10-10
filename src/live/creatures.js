@@ -15,11 +15,18 @@ import * as THREE from 'three';
 import { WORLD_R, LIGHT_GLSL, lightUniforms, hslLinear, PALETTE } from './look.js';
 import { heightAt } from './terrain.js';
 import { solveTwoBone, stepFeet, resetPair, GAIT, legLayout, stepDuration, horizontalReach } from './ik.js';
+import { projectedPx, lodFor, LOD_FAR, LOD_MID, LOD_FULL } from './lod.js';
 
 const MAX_SEG = 7;
 const STRIDE = 10; // frame row: id,x,y,heading,speed,energy,species,age,flags,generation
 const SPACING = 1.6;
 const SPECIES_TINT = 0.35;
+// each segment's gait phase is 0.9 rad behind the one ahead; stepping sin/cos by this
+// rotation replaces ~20k Math.sin/cos calls a frame at 1000 creatures
+const SEG_PH = 0.9, C_PH = Math.cos(SEG_PH), S_PH = Math.sin(SEG_PH);
+const TAU = Math.PI * 2;
+// mid LOD (8–20 px) solves gait + IK on one frame in MID_EVERY, interleaved by slot
+const MID_EVERY = 3;
 const GROW_S = 0.6, DIE_S = 0.5;
 // bodies are drawn smaller than their sim radius: at the sim's true size 600 creatures
 // carpet the moss; at 0.65 they read as a crowd with ground between them
@@ -208,6 +215,11 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
   const chain = new Float32Array(max * MAX_SEG * 3); // three-units x, y, z per segment
   const gait = new Float32Array(max * MAX_SEG * GAIT.SIZE);
   const mid = new Float32Array(max * 4); // proxy sphere: centre + radius
+  // leg LOD (lod.js): level per slot, and each leg's last solved knee/foot relative to its hip,
+  // reused on the frames a mid-LOD creature skips its IK
+  const lod = new Uint8Array(max).fill(LOD_FULL);
+  const legOff = new Float32Array(max * MAX_SEG * 2 * 6);
+  let camX = 0, camY = 0, camZ = 0, pxPerUnit = 0, frameNo = 0;
 
   const speciesHue = new Map();
   let stamp = 0, lastNext = null, selectedSlot = -1, reduced = !!reducedMotion, time = 0;
@@ -267,6 +279,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     bodyRGB[o] = tmpRGB[0]; bodyRGB[o + 1] = tmpRGB[1]; bodyRGB[o + 2] = tmpRGB[2];
     spec[s] = birth.species ?? -1;
     recolor(s);
+    lod[s] = LOD_FULL;
     placed[s] = 0; grow[s] = 0; dying[s] = -1; phase[s] = seed[s] * 6.28; speedEst[s] = 0; energy[s] = 1;
     stampPrev[s] = stampNext[s] = -1;
     activeIdx[s] = nActive; active[nActive++] = s;
@@ -342,7 +355,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
   const knee = { x: 0, y: 0, z: 0 }, end = { x: 0, y: 0, z: 0 };
   const lay = legLayout(1, 1);
   /** per-frame counters for the dev page: planted feet the legs could not reach (should stay ~0) */
-  const debug = { unreached: 0, planted: 0 };
+  const debug = { unreached: 0, planted: 0, far: 0, mid: 0, full: 0 };
 
   function update(prev, next, alpha = 1, dt = 1 / 60) {
     if (!next || !next.creatures) return;
@@ -355,7 +368,8 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     const ePos = eA.aPos.array, eLook = eA.aLook.array;
     const hPos = hA.aPos.array, hK = hA.aK.array;
     let ns = 0, nb = 0, ne = 0;
-    debug.unreached = 0; debug.planted = 0;
+    debug.unreached = 0; debug.planted = 0; debug.far = 0; debug.mid = 0; debug.full = 0;
+    frameNo++;
     const bobAmt = reduced ? 0 : 0.15;
     const liftAmt = reduced ? 0.18 : 0.5;
 
@@ -382,7 +396,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
       lastX[s] = X; lastZ[s] = Z;
       const v = dt > 0 ? moved / dt : 0;
       speedEst[s] += (v - speedEst[s]) * (1 - Math.exp(-10 * dt));
-      phase[s] += moved / (0.9 * L + r) * Math.PI;
+      phase[s] = (phase[s] + moved / (0.9 * L + r) * Math.PI) % TAU; // wrapped: it lives in a Float32Array
 
       // follow-the-leader chain
       const base = s * MAX_SEG * 3;
@@ -397,11 +411,25 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         chain[c + 2] = chain[p + 2] + (dz / d) * sp;
       }
       const bodyY = legLayout(r, L, lay).bodyY;
+      // how big is this creature on screen? (no view set = always full detail)
+      let lv = LOD_FULL;
+      if (pxPerUnit > 0) {
+        const cx = X - camX, cy = bodyY - camY, cz = Z - camZ;
+        lv = lodFor(projectedPx(r, Math.sqrt(cx * cx + cy * cy + cz * cz), pxPerUnit), lod[s]);
+      }
+      const replant = lod[s] === LOD_FAR && lv !== LOD_FAR; // gait state is stale after the analytic swing
+      lod[s] = lv;
+      const solveNow = lv === LOD_FULL || replant || (lv === LOD_MID && (s + frameNo) % MID_EVERY === 0);
+      const gaitDt = lv === LOD_MID ? dt * MID_EVERY : dt;
+      if (lv === LOD_FAR) debug.far++; else if (lv === LOD_MID) debug.mid++; else debug.full++;
       const stepDur = stepDuration(L, speedEst[s]);
+      // sin/cos of the current segment's phase (phase + i·0.9), advanced by rotation per segment
+      let phS = Math.sin(phase[s]), phC = Math.cos(phase[s]);
       let mx = 0, my = 0, mz = 0;
       const selected = s === selectedSlot ? 1 : 0;
 
       for (let i = 0; i < n; i++) {
+        if (i > 0) { const t2 = phS * C_PH + phC * S_PH; phC = phC * C_PH - phS * S_PH; phS = t2; } // phase + i·0.9
         const c = base + i * 3;
         // forward of this segment: toward the one ahead (head: its heading)
         let fx, fz;
@@ -411,7 +439,7 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         const ri = r * (i === 0 ? 0.92 : 1 - 0.35 * t * t) * env;
         const gx = chain[c], gz = chain[c + 2];
         const ground = heightAt(gx / WORLD_R, gz / WORLD_R);
-        const bob = bobAmt * r * Math.abs(Math.sin(phase[s] + i * 0.9));
+        const bob = bobAmt * r * (phS < 0 ? -phS : phS);
         // births/deaths scale the whole creature (no sinking into the ground), so its legs stay in reach at every size
         const gy = ground + (bodyY + bob) * env;
         chain[c + 1] = gy;
@@ -428,7 +456,9 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         hK[ns] = 0.75 * env;
         ns++;
 
-        // legs: left and right, planted, IK'd
+        // legs: left and right, planted, IK'd. Far creatures (a few px across) have
+        // sub-pixel legs: none are drawn, and none of this runs (no gait, no IK, no upload)
+        if (lv !== LOD_FAR) {
         // (shared geometry with the gait test in ik.test.js: planted feet stay in reach)
         legLayout(ri, L * env, lay);
         const latR = lay.latR, latF = lay.latF;
@@ -436,24 +466,36 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
         const hipY = gy - lay.hipDrop;
         const hlx = gx - fz * latR, hlz = gz + fx * latR, hrx = gx + fz * latR, hrz = gz - fx * latR;
         const go = (s * MAX_SEG + i) * GAIT.SIZE;
-        stepFeet(gait, go,
-          gx - fz * latF + fx * lead, gz + fx * latF + fz * lead,
-          gx + fz * latF + fx * lead, gz - fx * latF + fz * lead,
-          lay.threshold, dt, stepDur, 0.3,
-          hlx, hlz, hrx, hrz, horizontalReach(lay.l1, lay.l2, Math.abs(hipY - ground) + 0.3 * lay.l1));
+        const rlx = gx - fz * latF + fx * lead, rlz = gz + fx * latF + fz * lead;
+        const rrx = gx + fz * latF + fx * lead, rrz = gz - fx * latF + fz * lead;
+        if (solveNow) {
+          if (replant) resetPair(gait, go, rlx, rlz, rrx, rrz, i & 1);
+          stepFeet(gait, go, rlx, rlz, rrx, rrz,
+            lay.threshold, gaitDt, stepDur, 0.3,
+            hlx, hlz, hrx, hrz, horizontalReach(lay.l1, lay.l2, Math.abs(hipY - ground) + 0.3 * lay.l1));
+        }
         const l1 = lay.l1, l2 = lay.l2, th = Math.max(0.006, 0.16 * r) * env;
         const lr = rgb[o] * 0.5 + 0.02, lg = rgb[o + 1] * 0.45 + 0.016, lb = rgb[o + 2] * 0.42 + 0.012;
         for (let side = 0; side < 2; side++) {
           const sg = side === 0 ? 1 : -1;
-          const FX = side === 0 ? GAIT.LX : GAIT.RX, FT = side === 0 ? GAIT.LT : GAIT.RT;
           hip.x = sg > 0 ? hlx : hrx; hip.y = hipY; hip.z = sg > 0 ? hlz : hrz;
-          const footX = gait[go + FX], footZ = gait[go + FX + 1], st = gait[go + FT];
-          if (st < 0) debug.planted++;
-          tgt.x = footX; tgt.z = footZ;
-          tgt.y = heightAt(footX / WORLD_R, footZ / WORLD_R) + (st >= 0 ? Math.sin(st * Math.PI) * liftAmt * L : 0);
-          pole.x = hip.x - fz * L * sg; pole.y = hip.y + 1.6 * L; pole.z = hip.z + fx * L * sg;
-          // a planted foot the legs cannot reach steps next frame instead of skating
-          if (!solveTwoBone(hip, tgt, l1, l2, pole, knee, end).reached && st < 0) { gait[go + (side === 0 ? GAIT.LF : GAIT.RF)] = 1; debug.unreached++; }
+          const lo = ((s * MAX_SEG + i) * 2 + side) * 6;
+          if (solveNow) {
+            const FX = side === 0 ? GAIT.LX : GAIT.RX, FT = side === 0 ? GAIT.LT : GAIT.RT;
+            const footX = gait[go + FX], footZ = gait[go + FX + 1], st = gait[go + FT];
+            if (st < 0) debug.planted++;
+            tgt.x = footX; tgt.z = footZ;
+            tgt.y = heightAt(footX / WORLD_R, footZ / WORLD_R) + (st >= 0 ? Math.sin(st * Math.PI) * liftAmt * L : 0);
+            pole.x = hip.x - fz * L * sg; pole.y = hip.y + 1.6 * L; pole.z = hip.z + fx * L * sg;
+            // a planted foot the legs cannot reach steps next frame instead of skating
+            if (!solveTwoBone(hip, tgt, l1, l2, pole, knee, end).reached && st < 0) { gait[go + (side === 0 ? GAIT.LF : GAIT.RF)] = 1; debug.unreached++; }
+            legOff[lo] = knee.x - hip.x; legOff[lo + 1] = knee.y - hip.y; legOff[lo + 2] = knee.z - hip.z;
+            legOff[lo + 3] = end.x - hip.x; legOff[lo + 4] = end.y - hip.y; legOff[lo + 5] = end.z - hip.z;
+          } else {
+            // mid LOD, off frame: last frame's leg pose carried along with the hip
+            knee.x = hip.x + legOff[lo]; knee.y = hip.y + legOff[lo + 1]; knee.z = hip.z + legOff[lo + 2];
+            end.x = hip.x + legOff[lo + 3]; end.y = hip.y + legOff[lo + 4]; end.z = hip.z + legOff[lo + 5];
+          }
           let b = nb * 4;
           bA_[b] = hip.x; bA_[b + 1] = hip.y; bA_[b + 2] = hip.z; bA_[b + 3] = th;
           bB[b] = knee.x; bB[b + 1] = knee.y; bB[b + 2] = knee.z; bB[b + 3] = th * 0.8;
@@ -465,9 +507,10 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
           cc = nb * 3; bC[cc] = lr * 0.7; bC[cc + 1] = lg * 0.7; bC[cc + 2] = lb * 0.7;
           nb++;
         }
+        }
 
-        if (i === 0) {
-          // two bead eyes on the front of the head
+        if (i === 0 && lv !== LOD_FAR) {
+          // two bead eyes (sub-pixel on far creatures, so skipped there) on the front of the head
           for (let side = -1; side <= 1; side += 2) {
             const e = ne * 4;
             ePos[e] = gx + fx * 0.68 * ri - fz * 0.42 * ri * side;
@@ -526,6 +569,8 @@ export function createCreatures(scene, { max = 2000, bodyFromGenes, reducedMotio
     /** highlight one creature (or null) with a lichen rim */
     setSelected(id) { const s = id == null ? undefined : slotOf.get(id); selectedSlot = s === undefined ? -1 : s; },
     setReducedMotion(v) { reduced = !!v; },
+    /** camera position and px per world unit at distance 1 (viewport CSS height / (2·tan(fov/2))): enables leg LOD */
+    setView(position, pxPerUnitAt1) { camX = position.x; camY = position.y; camZ = position.z; pxPerUnit = pxPerUnitAt1; },
     get count() { return nActive; },
     group,
     dispose() {
