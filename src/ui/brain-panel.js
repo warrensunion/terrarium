@@ -241,7 +241,7 @@ export function createBrainPanel(root, { onClose = () => {}, onLineage, speciesH
       closeBtn.removeEventListener('click', userClose);
       refs.chips.removeEventListener('click', onChip);
       viz.destroy();
-      if (open) delete document.documentElement.dataset.uiBrain;
+      delete document.documentElement.dataset.uiBrain;
       el.remove();
     },
   };
