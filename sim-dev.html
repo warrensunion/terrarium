@@ -1,0 +1,77 @@
+<!doctype html>
+<!--
+  Dev page for the sim worker alone (not built): a flat 2D view of the jar
+  so the worker protocol, the backend choice and the ecology can be checked
+  without the 3D renderer. ?seed=&count=&speed=1|4|16&simcheck=1
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sim dev</title>
+  <style>
+    body { margin: 0; background: #14241f; color: #c9d8d2; font: 13px/1.5 system-ui, sans-serif; }
+    canvas { display: block; width: min(100vw, 80vh); height: auto; margin: 0 auto; }
+    pre { margin: 8px 16px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <canvas id="jar" width="800" height="800"></canvas>
+  <pre id="out">starting…</pre>
+  <script type="module">
+    const q = new URLSearchParams(location.search);
+    const speed = Number(q.get('speed') ?? 1);
+    const cv = document.getElementById('jar');
+    const g = cv.getContext('2d');
+    const out = document.getElementById('out');
+    const worker = new Worker('/src/worker/sim.worker.js', { type: 'module' });
+    const hue = new Map();
+    let ready = null, frame = null, inFlight = false, sent = 0, simMs = 0;
+
+    worker.onerror = (e) => (out.textContent = 'worker failed: ' + e.message);
+    worker.onmessage = ({ data }) => {
+      if (data.type === 'ready') ready = data;
+      if (data.type !== 'frame') return;
+      simMs = simMs * 0.9 + (performance.now() - sent) * 0.1;
+      inFlight = false;
+      frame = data;
+      for (const [id, , h] of data.stats.species) hue.set(id, h);
+    };
+    worker.postMessage({
+      type: 'init',
+      seed: Number(q.get('seed') ?? 1),
+      count: Number(q.get('count') ?? 600),
+      params: {},
+      simcheck: q.get('simcheck') === '1',
+    });
+
+    function draw() {
+      requestAnimationFrame(draw);
+      if (!inFlight) {
+        inFlight = true;
+        sent = performance.now();
+        worker.postMessage({ type: 'step', steps: speed });
+      }
+      if (!frame) return;
+      const s = cv.width / 2;
+      g.fillStyle = '#1f3a33';
+      g.fillRect(0, 0, cv.width, cv.height);
+      g.fillStyle = '#d6c35a';
+      const f = frame.food;
+      for (let i = 0; i < f.length; i += 3) if (f[i + 2] > 0) g.fillRect(s + f[i] * s - 1, s + f[i + 1] * s - 1, 2, 2);
+      const c = frame.creatures;
+      for (let i = 0; i < c.length; i += 10) {
+        g.fillStyle = `hsl(${hue.get(c[i + 6]) ?? 0},55%,55%)`;
+        g.beginPath();
+        g.arc(s + c[i + 1] * s, s + c[i + 2] * s, 3, 0, 7);
+        g.fill();
+      }
+      const st = frame.stats;
+      out.textContent = `backend ${ready?.backend} (${ready?.reason})\n` +
+        `tick ${st.tick}  population ${st.population}  species ${st.species.length}  generation ${st.generation}\n` +
+        `round trip ${simMs.toFixed(1)} ms for ${speed} step(s)`;
+    }
+    draw();
+  </script>
+</body>
+</html>
