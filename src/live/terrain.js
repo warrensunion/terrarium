@@ -88,7 +88,8 @@ void main() {
   if (uHasSoil > 0.5) soil = mix(soil, texture2D(uSoil, p * 0.5).rgb, 0.7);
   vec3 albedo = mix(moss, soil, soilMask);
   // lichen flecks
-  albedo = mix(albedo, uLichen * 0.55, smoothstep(0.86, 0.9, lvNoise(p * 31.0 + 3.0)) * (1.0 - soilMask) * 0.35);
+  // (pale grey-green, not yellow: yellow on the ground means food)
+  albedo = mix(albedo, vec3(0.32, 0.36, 0.26), smoothstep(0.84, 0.9, lvNoise(p * 31.0 + 3.0)) * (1.0 - soilMask) * 0.45);
   // contact shadow where the soil meets the glass
   float r = length(p);
   float ao = mix(1.0, 0.45, smoothstep(uJarR - 0.7, uJarR, r)) * (0.75 + 0.25 * fine);

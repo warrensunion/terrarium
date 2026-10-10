@@ -9,7 +9,8 @@
   <link rel="stylesheet" href="/src/styles/tokens.css">
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; background: #14241F; }
-    .lv-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+    .lv-stage { position: fixed; inset: 0; }
+    .lv-canvas { cursor: grab; }
     .lv-canvas:active { cursor: grabbing; }
     .lv-dev {
       position: fixed; left: 16px; top: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
@@ -26,7 +27,7 @@
   </style>
 </head>
 <body>
-  <canvas class="lv-canvas"></canvas>
+  <div class="lv-stage"></div>
   <div class="lv-dev">
     <span>Speed</span>
     <button type="button" data-speed="1">1x</button>

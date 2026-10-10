@@ -1,8 +1,8 @@
 /**
  * Everything the live screen draws, assembled once: renderer, scene, jar,
- * terrain, creatures, food, spores, camera rig and the grade. The live
- * screen (and live-dev.html) only feeds frames in and calls render(), so the
- * dev page measures exactly what ships.
+ * terrain, creatures, food, spores, camera rig and the grade. The live screen
+ * only wires the worker and the UI to this; live-dev.html uses the same
+ * module, so what the dev page measures is exactly what ships.
  */
 import * as THREE from 'three';
 import { createJar } from './jar.js';
@@ -24,12 +24,17 @@ function loadOptional(url) {
 }
 
 /**
- * @param {{ canvas:HTMLCanvasElement, bodyFromGenes:Function, max?:number, reducedMotion?:boolean, pixelRatio?:number }} o
+ * @param {HTMLElement} container the stage fills it (a canvas.lv-canvas is appended)
+ * @param {{ bodyFromGenes:Function, reducedMotion?:boolean, max?:number, pixelRatio?:number }} opts
  */
-export function createLiveStage({ canvas, bodyFromGenes, max = 2000, reducedMotion = false, pixelRatio = Math.min(2, globalThis.devicePixelRatio || 1) }) {
+export function createStage(container, { bodyFromGenes, reducedMotion = false, max = 2000, pixelRatio } = {}) {
+  const canvas = document.createElement('canvas');
+  canvas.className = 'lv-canvas';
+  canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none';
+  container.append(canvas);
+
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(pixelRatio);
-  renderer.autoClear = true;
+  renderer.setPixelRatio(pixelRatio || Math.min(2, globalThis.devicePixelRatio || 1));
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.03, 200);
 
@@ -44,7 +49,7 @@ export function createLiveStage({ canvas, bodyFromGenes, max = 2000, reducedMoti
   const grade = createGrade(renderer);
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2(), buf = new THREE.Vector2();
-  let w = 1, h = 1, time = 0, disposed = false;
+  let prev = null, next = null, time = 0, disposed = false;
 
   // art is optional: the jar is fully procedural without it
   Promise.all([loadOptional(ART.moss), loadOptional(ART.soil), loadOptional(ART.backdrop)]).then(([moss, soil, backdrop]) => {
@@ -54,9 +59,10 @@ export function createLiveStage({ canvas, bodyFromGenes, max = 2000, reducedMoti
   });
 
   const stage = {
-    renderer, scene, camera, rig, creatures, food, particles, jar, terrain,
-    resize(width, height) {
-      w = Math.max(1, width); h = Math.max(1, height);
+    renderer, scene, camera, rig, creatures, food, particles, canvas,
+    /** match the container's size (call on window resize) */
+    resize() {
+      const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight);
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -64,21 +70,23 @@ export function createLiveStage({ canvas, bodyFromGenes, max = 2000, reducedMoti
       grade.setSize(s.x, s.y);
       particles.setSize(s.y);
     },
-    /** feed the latest two sim frames; alpha 0..1 between them */
-    frame(prev, next, alpha, dt) {
-      creatures.update(prev, next, alpha, dt);
-      food.update(next && next.food);
+    /** the two latest sim frames (worker format); render() interpolates between them */
+    setFrames(p, n) {
+      prev = p; next = n;
+      if (n) food.update(n.food);
     },
-    render(dt) {
+    /** draw one frame; alpha 0..1 = how far between prev and next, dt = seconds since last render */
+    render(dt, alpha = 1) {
       time += dt;
       lightUniforms.uTime.value = time;
+      if (next) creatures.update(prev, next, alpha, dt);
       rig.update(dt);
       const s = renderer.getDrawingBufferSize(buf);
       jar.update(camera, s.x, s.y);
       grade.render(scene, camera, time);
     },
     /** creature id under a client-space point, or null */
-    pickAt(clientX, clientY) {
+    pick(clientX, clientY) {
       const r = canvas.getBoundingClientRect();
       ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
@@ -86,12 +94,15 @@ export function createLiveStage({ canvas, bodyFromGenes, max = 2000, reducedMoti
     },
     setReducedMotion(v) { creatures.setReducedMotion(v); particles.setReducedMotion(v); rig.setReducedMotion(v); },
     dispose() {
+      if (disposed) return;
       disposed = true;
       rig.dispose(); creatures.dispose(); food.dispose(); particles.dispose(); jar.dispose(); grade.dispose();
       terrain.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
       renderer.dispose();
-      renderer.forceContextLoss();
+      renderer.forceContextLoss(); // WEBGL_lose_context
+      canvas.remove();
     },
   };
+  stage.resize();
   return stage;
 }

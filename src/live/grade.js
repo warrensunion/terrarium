@@ -17,6 +17,8 @@ uniform sampler2D tScene;
 uniform float uTime, uExposure, uGrain;
 uniform vec3 uLift, uHigh;
 uniform vec2 uRes;
+uniform vec3 uBeam;
+uniform float uBeamAmt;
 varying vec2 vUv;
 vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 vec3 toSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
@@ -24,6 +26,15 @@ float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx
 void main() {
   vec3 c = texture2D(tScene, vUv).rgb * uExposure;
   c = toSRGB(aces(c));
+  // the afternoon shaft: a soft warm beam falling from the upper-left window,
+  // with faint bands where the mullions cut it
+  float asp = uRes.x / uRes.y;
+  vec2 d = vec2(vUv.x * asp, vUv.y) - vec2(-0.15 * asp, 1.2);
+  vec2 dir = normalize(vec2(0.78, -0.62));
+  float along = dot(d, dir), across = dot(d, vec2(-dir.y, dir.x));
+  float beam = exp(-pow(across / (0.1 + 0.22 * along), 2.0)) * smoothstep(0.1, 0.5, along) * smoothstep(1.9, 0.6, along);
+  beam *= 0.75 + 0.25 * sin(across * 38.0 / (0.4 + along));
+  c += uBeam * beam * uBeamAmt;
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   // gouache is matte: pull saturation back a little everywhere
   c = mix(vec3(l), c, 0.88);
@@ -53,6 +64,7 @@ export function createGrade(renderer) {
     uniforms: {
       tScene: { value: rt.texture }, uTime: { value: 0 }, uExposure: { value: 1.0 }, uGrain: { value: 0.035 },
       uLift: { value: srgb(PALETTE.inkLift) }, uHigh: { value: srgb(PALETTE.highlight) }, uRes: { value: size.clone() },
+      uBeam: { value: srgb(PALETTE.highlight) }, uBeamAmt: { value: 0.12 },
     },
     vertexShader: vert, fragmentShader: frag, depthTest: false, depthWrite: false,
   });

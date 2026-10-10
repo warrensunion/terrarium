@@ -5,7 +5,7 @@
  * births/deaths, stats.species) at 1/4/16 steps per frame, and the loop below
  * is the same prev/next/alpha interpolation the live screen will run.
  */
-import { createLiveStage } from './stage.js';
+import { createStage } from './stage.js';
 import { bodyFromGenes } from './dev-genes.js';
 import { prefersReducedMotion, param } from '../core/env.js';
 
@@ -133,14 +133,15 @@ function createFakeWorld(count, seed = 3) {
 }
 
 // ---------------------------------------------------------------- page
-const canvas = document.querySelector('.lv-canvas');
+const host = document.querySelector('.lv-stage');
 const reduced = prefersReducedMotion();
-const stage = createLiveStage({ canvas, bodyFromGenes, reducedMotion: reduced, pixelRatio: Number(param('dpr')) || undefined });
+const stage = createStage(host, { bodyFromGenes, reducedMotion: reduced, pixelRatio: Number(param('dpr')) || undefined });
+const canvas = stage.canvas;
 const world = createFakeWorld(Number(param('n')) || 600);
 let speed = Number(param('speed')) || 1;
 let prev = null, next = null, acc = 0, followId = null;
 
-const fit = () => stage.resize(canvas.clientWidth, canvas.clientHeight);
+const fit = () => stage.resize();
 addEventListener('resize', fit);
 fit();
 
@@ -149,9 +150,11 @@ function apply(f) {
   for (const id of f.deaths) stage.creatures.remove(id);
 }
 next = world.frame(0); apply(next);
+stage.setFrames(null, next);
 
 // UI
 const ui = document.querySelector('.lv-dev');
+if (param('hud') === '0') ui.style.display = 'none';
 const readout = ui.querySelector('.lv-dev__ms');
 for (const b of ui.querySelectorAll('[data-speed]')) {
   b.addEventListener('click', () => setSpeed(Number(b.dataset.speed)));
@@ -170,7 +173,7 @@ function follow(id) {
 function unfollow() { followId = null; stage.creatures.setSelected(null); stage.rig.release(); }
 canvas.addEventListener('pointerup', (e) => {
   if (stage.rig.dragDistance > 6) return;
-  const id = stage.pickAt(e.clientX, e.clientY);
+  const id = stage.pick(e.clientX, e.clientY);
   if (id != null) follow(id);
 });
 addEventListener('keydown', (e) => { if (e.key === 'Escape') unfollow(); });
@@ -193,8 +196,8 @@ function loop(now) {
     prev = next; next = world.frame(speed); apply(next);
   }
   if (made === 2) acc = Math.min(acc, DT);
-  stage.frame(prev, next, acc / DT, dt);
-  stage.render(dt);
+  if (made) stage.setFrames(prev, next);
+  stage.render(dt, acc / DT);
   if (followId != null && !stage.creatures.positionOf(followId)) unfollow();
   if (syncGPU) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
   const cpu = performance.now() - t0;
@@ -213,6 +216,6 @@ requestAnimationFrame(loop);
 window.__lv = { stage, stats, follow, unfollow, setSpeed, world };
 if (param('follow')) setTimeout(() => {
   // follow the creature nearest the middle of the screen
-  const id = stage.pickAt(innerWidth / 2, innerHeight * 0.55) ?? next.creatures[0];
+  const id = stage.pick(innerWidth / 2, innerHeight * 0.55) ?? next.creatures[0];
   follow(id);
 }, 600);
