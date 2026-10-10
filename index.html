@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-pl="off">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,9 +8,65 @@
   <meta name="theme-color" content="#1F3A33">
   <link rel="preload" href="/fonts/im-fell-english.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/hanken-grotesk-var.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    /* Decide before first paint whether the preloader shows: once per session,
+       on the intro route only; ?preloader=1 forces it, ?preloader=0 or ?scene=N skips it. */
+    (function () {
+      var q = new URLSearchParams(location.search), f = q.get('preloader');
+      var h = location.hash.replace(/^#/, '');
+      var intro = !/^\/(live|about)$/.test(h);
+      var on = f === '1';
+      if (!on && f !== '0' && !q.get('scene') && intro) {
+        try { on = !sessionStorage.getItem('terrarium:preloaded'); } catch (e) { on = true; }
+      }
+      document.documentElement.setAttribute('data-pl', on ? 'on' : 'off');
+    })();
+  </script>
+  <style>
+    /* Preloader first paint: must look right before any CSS chunk arrives.
+       Fog paper with grain, a faint hand-drawn stem traced by load progress. */
+    html[data-pl="on"], html[data-pl="on"] body { background: #C9D8D2; overflow: hidden; }
+    .pl { position: fixed; inset: 0; z-index: 50; display: none; background: #C9D8D2; color: #1F3A33; overflow: hidden; }
+    html[data-pl="on"] .pl { display: block; }
+    .pl::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .6; mix-blend-mode: multiply;
+      background-image: url("/art/paper-grain.webp"), url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .12 0 0 0 0 .23 0 0 0 0 .2 0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      background-size: 512px, 160px; }
+    .pl-stem { position: absolute; left: 50%; top: 50%; height: 31vh; width: calc(31vh * 40 / 300); transform: translate(-50%, -50%); overflow: visible;
+      opacity: 0; transition: opacity .3s cubic-bezier(.215,.61,.355,1); }
+    .pl-stem path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+    .pl-guide { stroke: #1F3A33; stroke-opacity: .2; stroke-width: 1.2; stroke-dasharray: 2.5 4; }
+    .pl-trace { stroke: #1F3A33; stroke-opacity: .8; stroke-width: 1.7; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+    .pl-guide-on .pl-stem { opacity: 1; }
+    .pl-traced .pl-stem { opacity: 0; }
+    .pl-disc { --pop: .6; --breath: 1; --grow: 1; --d: min(58vh, 84vw);
+      position: absolute; left: 50%; top: 50%; width: var(--d); height: var(--d); margin: calc(var(--d) / -2) 0 0 calc(var(--d) / -2);
+      border-radius: 50%; background: radial-gradient(circle at 40% 36%, #E6EEE8, #D6E2DC 68%, #CEDBD5); opacity: 0;
+      transform: scale(calc(var(--pop) * var(--breath) * var(--grow))); will-change: transform, opacity;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3%; }
+    .pl-sprout { height: 52%; width: auto; margin-top: 4%; transform: translateX(5%); }
+    .pl-word { font: 400 clamp(30px, 4.8vh, 46px)/1 'IM Fell English', Georgia, serif; color: #1F3A33; }
+    .pl-num { position: absolute; left: 50%; bottom: 14vh; transform: translateX(-50%); opacity: 0;
+      font: 500 13px/1 'Hanken Grotesk', system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #1F3A33; }
+    .pl-reduced .pl-stem { display: none; }
+    .pl-reduced .pl-disc { opacity: 1 !important; transform: none; }
+    .pl-reduced .pl-num { opacity: .75; }
+    .pl-reduced.pl-pop .pl-num { opacity: 0; }
+  </style>
 </head>
 <body>
+  <div id="pl" class="pl" role="progressbar" aria-label="Loading Terrarium" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <svg class="pl-stem" viewBox="0 0 40 300" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path class="pl-guide" d="M21 300 C 9 268, 31 246, 22 214 S 7 160, 19 128 S 34 74, 23 46 S 14 12, 20 0"/>
+      <path class="pl-trace" pathLength="1" d="M21 300 C 9 268, 31 246, 22 214 S 7 160, 19 128 S 34 74, 23 46 S 14 12, 20 0"/>
+    </svg>
+    <div class="pl-disc" aria-hidden="true">
+      <img class="pl-sprout" src="/art/preloader-sprout.webp" alt="" onerror="this.remove()">
+      <span class="pl-word">Terrarium</span>
+    </div>
+    <span class="pl-num" aria-hidden="true">0%</span>
+  </div>
   <div id="app"></div>
+  <script type="module" src="/src/intro/preloader.js"></script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
