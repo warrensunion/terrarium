@@ -182,7 +182,7 @@ export function createWorld({ seed = 1, count = 600, params = {}, sensor = sense
       genome, body: genes, brain: createBrain(genome), species, generation, parents, gathered: 0, flags: 0,
       // derived and scratch, kept on the object so the step allocates nothing
       radius: body.radius, segments: body.segments, sizeGene: genes.size, derived: body, inputs,
-      turn: 0, thrust: 0, wantEat: 0, wantMate: 0, ateAt: -1e9, matedAt: -1e9, alive: true,
+      turn: 0, thrust: 0, wantEat: 0, wantMate: 0, ateAt: -1e9, matedAt: -1e9,
     };
     if (parents.length) parentOf.set(c.id, parents[0]);
     return c;
@@ -269,7 +269,6 @@ export function createWorld({ seed = 1, count = 600, params = {}, sensor = sense
       c.energy = c.energy - cost > 0 ? c.energy - cost : 0;
       c.age += DT;
       if (c.energy <= 0 || c.age > MAX_AGE) {
-        c.alive = false;
         world.deaths.push({ tick: t, id: c.id });
         continue;
       }

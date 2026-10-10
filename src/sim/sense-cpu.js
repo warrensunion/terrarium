@@ -57,12 +57,9 @@ export function buildGrid(grid, xy, n, needAmount) {
   return grid;
 }
 
-/** Squared distance of the last nearest() hit. */
-export const hit = { d2: 0 };
-
 /**
  * Nearest indexed point to (x, y) within SENSE_R, skipping index `self`.
- * Returns the index or -1; the squared distance is left in hit.d2.
+ * Returns the index or -1.
  */
 export function nearest(grid, xy, x, y, self) {
   const { start, items } = grid;
@@ -91,7 +88,6 @@ export function nearest(grid, xy, x, y, self) {
       }
     }
   }
-  hit.d2 = bestD2;
   return best;
 }
 
