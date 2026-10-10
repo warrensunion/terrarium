@@ -123,13 +123,17 @@ void main() {
     gravel = mix(gravel, pc, pebble * step(0.2, id));
   }
   vec3 charcoal = vec3(0.025, 0.03, 0.03) * (0.7 + 0.6 * lvNoise(p * 30.0));
-  vec3 soil = uPeat * (0.75 + 0.7 * lvFbm(p * 6.0));
+  vec3 soil = uPeat * (1.5 + 1.1 * lvFbm(p * 6.0));
   // pale rootlets in the soil
   soil = mix(soil, vec3(0.32, 0.26, 0.18), smoothstep(0.02, 0.0, abs(lvFbm(p * vec2(3.0, 9.0)) - 0.5)) * 0.5);
   vec3 c = gravel;
   c = mix(c, charcoal, smoothstep(0.42, 0.46, y + wob * 0.4));
   c = mix(c, soil, smoothstep(0.62, 0.68, y + wob * 0.5));
-  gl_FragColor = vec4(lvGouache(c, N, V, 0.9, 0.0) * 1.1, 1.0);
+  // the side of the soil faces away from the window; light it as the room would
+  // (warm bounce through the glass, a peat ambient) so it reads as peat, not a black slab
+  vec3 lit = lvGouache(c, N, V, 0.9, 0.0) + c * (uKeyCol * 0.45 + vec3(0.32, 0.27, 0.22));
+  lit *= 0.85 + 0.3 * smoothstep(-1.0, 1.0, vPos.y - uFloor - 1.2); // a touch lighter toward the moss
+  gl_FragColor = vec4(lit, 1.0);
 }`;
 
 const tuftVert = /* glsl */ `

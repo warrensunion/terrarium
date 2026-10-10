@@ -118,6 +118,7 @@ void main() {
 const corkFrag = /* glsl */ `
 ${LIGHT_GLSL}
 uniform vec3 uPeat;
+uniform float uSeat;
 varying vec3 vPos; varying vec3 vN;
 void main() {
   vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vPos);
@@ -127,7 +128,11 @@ void main() {
   vec3 alb = uPeat * (1.9 + 0.6 * lvFbm(p * 2.0));
   alb = mix(alb, uPeat * 0.9, smoothstep(0.7, 0.9, g) * 0.8);
   alb = mix(alb, vec3(0.5, 0.36, 0.22), smoothstep(0.75, 0.92, g2) * 0.5);
-  gl_FragColor = vec4(lvGouache(alb, N, V, 0.95, 0.8), 1.0);
+  // inside the neck the cork is in the glass's shade; a dark seam where it presses on the lip
+  float inside = smoothstep(uSeat + 0.02, uSeat - 0.1, vPos.y);
+  float seam = smoothstep(0.12, 0.0, abs(vPos.y - uSeat - 0.02)) * (1.0 - step(0.7, abs(N.y)));
+  float ao = mix(0.95, 0.78, inside) * (1.0 - 0.45 * seam);
+  gl_FragColor = vec4(lvGouache(alb, N, V, ao, 0.8 * (1.0 - inside)), 1.0);
 }`;
 const plainVert = /* glsl */ `
 varying vec3 vPos; varying vec3 vN;
@@ -209,12 +214,14 @@ export function createJar() {
   base.renderOrder = 19; base.name = 'lv-glass-base';
 
   // cork lid, bevelled, pressed into the neck
-  const C = NECK_R - 0.05, CT = LIP_Y + 0.62;
-  const corkPts = [[0, CT], [C - 0.32, CT], [C - 0.1, CT - 0.05], [C, CT - 0.2], [C + 0.02, NECK_Y - 0.05], [C - 0.06, NECK_Y - 0.22], [C - 0.3, NECK_Y - 0.26], [0, NECK_Y - 0.26]].map(([x, y]) => new THREE.Vector2(x, y));
+  // a tapered stopper seated in the neck: the cap overhangs the lip and sits on it,
+  // the body goes down inside the glass (shaded there by corkFrag)
+  const T = NECK_R + 0.17, C = NECK_R - 0.06, CT = LIP_Y + 0.4, SEAT = LIP_Y + 0.05;
+  const corkPts = [[0, CT], [T - 0.22, CT], [T - 0.05, CT - 0.05], [T, CT - 0.16], [T - 0.01, SEAT + 0.03], [T - 0.08, SEAT], [C, SEAT], [C - 0.03, NECK_Y - 0.5], [C - 0.25, NECK_Y - 0.56], [0, NECK_Y - 0.56]].map(([x, y]) => new THREE.Vector2(x, y));
   const corkGeo = new THREE.LatheGeometry(corkPts.reverse(), 96);
   corkGeo.computeVertexNormals();
   const cork = new THREE.Mesh(corkGeo, new THREE.ShaderMaterial({
-    uniforms: { ...lightUniforms, uPeat: { value: PALETTE.peat.clone() } }, vertexShader: plainVert, fragmentShader: corkFrag,
+    uniforms: { ...lightUniforms, uPeat: { value: PALETTE.peat.clone() }, uSeat: { value: LIP_Y + 0.05 } }, vertexShader: plainVert, fragmentShader: corkFrag,
   }));
   cork.name = 'lv-cork';
 
